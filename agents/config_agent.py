@@ -1,26 +1,27 @@
 import os
 from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
-from langchain_groq import ChatGroq # Use Groq instead of OpenAI
-from langchain_openai import OpenAIEmbeddings
+from langchain_groq import ChatGroq
+from langchain_community.embeddings import HuggingFaceEmbeddings # Local & Free
 from langchain_community.vectorstores import Chroma
-from langchain.chains import RetrievalQA
+from langchain_classic.chains import RetrievalQA
 
 class ConfigAgent:
     def __init__(self, doc_path="./data/docs/", db_path="./database/vector_store/"):
-        # Load fMRIPrep & BIDS Documentation
+        # 1. Load fMRIPrep & BIDS Documentation
         loader = DirectoryLoader(doc_path, glob="./*.pdf", loader_cls=PyPDFLoader)
         docs = loader.load()
 
-        # We still use OpenAI for embeddings; ensure your OPENAI_API_KEY is set
-        self.embeddings = OpenAIEmbeddings()
+        # 2. Use Local Embeddings (No API Key Needed)
+        # This will download a small model (~400MB) the first time you run it
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        
         self.vector_db = Chroma.from_documents(
             documents=docs, 
             embedding=self.embeddings, 
             persist_directory=db_path
         )
         
-        # Initialize Groq LLM (e.g., Llama 3.3 70B)
-        # Ensure you have set: export GROQ_API_KEY='your-key'
+        # 3. Use Groq for the "Thinking"
         self.llm = ChatGroq(
             model_name="llama-3.3-70b-versatile", 
             temperature=0
