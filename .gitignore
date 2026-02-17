@@ -1,2 +1,4 @@
 license.txt
 database/
+__pycache__/
+.DS_Store
