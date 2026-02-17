@@ -1,0 +1,74 @@
+Node: fmriprep_wf.single_subject_01_wf.anat_preproc_wf.surface_recon_wf.autorecon_resume_wf.autorecon2_vol
+Working directory: /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/autorecon_resume_wf/autorecon2_vol
+
+Node inputs:
+
+FLAIR_file = <undefined>
+T1_files = <undefined>
+T2_file = <undefined>
+args = <undefined>
+big_ventricles = <undefined>
+brainstem = <undefined>
+directive = autorecon2-volonly
+environ = {}
+expert = <undefined>
+flags = <undefined>
+hemi = <undefined>
+hippocampal_subfields_T1 = <undefined>
+hippocampal_subfields_T2 = <undefined>
+hires = <undefined>
+mprage = <undefined>
+mri_aparc2aseg = <undefined>
+mri_ca_label = <undefined>
+mri_ca_normalize = <undefined>
+mri_ca_register = <undefined>
+mri_edit_wm_with_aseg = <undefined>
+mri_em_register = <undefined>
+mri_fill = <undefined>
+mri_mask = <undefined>
+mri_normalize = <undefined>
+mri_pretess = <undefined>
+mri_remove_neck = <undefined>
+mri_segment = <undefined>
+mri_segstats = <undefined>
+mri_tessellate = <undefined>
+mri_watershed = <undefined>
+mris_anatomical_stats = <undefined>
+mris_ca_label = <undefined>
+mris_fix_topology = <undefined>
+mris_inflate = <undefined>
+mris_make_surfaces = <undefined>
+mris_register = <undefined>
+mris_smooth = <undefined>
+mris_sphere = <undefined>
+mris_surf2vol = <undefined>
+mrisp_paint = <undefined>
+openmp = 8
+parallel = <undefined>
+steps = <undefined>
+subject_id = recon_all
+subjects_dir = <undefined>
+talairach = <undefined>
+use_FLAIR = <undefined>
+use_T2 = <undefined>
+xopts = <undefined>
+
+Traceback (most recent call last):
+  File "/usr/local/miniconda/lib/python3.7/shutil.py", line 557, in move
+    os.rename(src, real_dst)
+FileNotFoundError: [Errno 2] No such file or directory: '/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/autorecon_resume_wf/autorecon2_vol/_0x8c5eb6e169ee09ff23ffb0968aa58219_unfinished.json' -> '/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/autorecon_resume_wf/autorecon2_vol/_0x8c5eb6e169ee09ff23ffb0968aa58219.json'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/pipeline/plugins/multiproc.py", line 67, in run_node
+    result["result"] = node.run(updatehash=updatehash)
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/pipeline/engine/nodes.py", line 531, in run
+    shutil.move(hashfile_unfinished, hashfile_unfinished.replace("_unfinished", ""))
+  File "/usr/local/miniconda/lib/python3.7/shutil.py", line 571, in move
+    copy_function(src, real_dst)
+  File "/usr/local/miniconda/lib/python3.7/shutil.py", line 257, in copy2
+    copyfile(src, dst, follow_symlinks=follow_symlinks)
+  File "/usr/local/miniconda/lib/python3.7/shutil.py", line 120, in copyfile
+    with open(src, 'rb') as fsrc:
+FileNotFoundError: [Errno 2] No such file or directory: '/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/autorecon_resume_wf/autorecon2_vol/_0x8c5eb6e169ee09ff23ffb0968aa58219_unfinished.json'

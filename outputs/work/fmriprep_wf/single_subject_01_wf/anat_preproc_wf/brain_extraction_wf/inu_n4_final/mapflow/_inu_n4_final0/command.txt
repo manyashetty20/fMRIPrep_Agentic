@@ -1,0 +1,2 @@
+N4BiasFieldCorrection --bspline-fitting [ 200 ] -d 3 --input-image /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz --convergence [ 50x50x50x50x50, 1e-07 ] --output [ sub-01_T1w_ras_valid_corrected.nii.gz, sub-01_T1w_ras_valid_bias.nii.gz ] -r --shrink-factor 4 --weight-image /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/map_wmmask/summap_trans.nii.gz
+

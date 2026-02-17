@@ -1,0 +1,26 @@
+[
+    [
+        "hires_enabled",
+        true
+    ],
+    [
+        "t1w_list",
+        [
+            [
+                "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz",
+                "b722cf4c22dade7ef9aa7b1adec061c8"
+            ]
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "flair",
+            "hires",
+            "mris_inflate",
+            "t2w",
+            "use_flair",
+            "use_t2w"
+        ]
+    ]
+]

@@ -1,0 +1,31 @@
+[
+    [
+        "copy_header",
+        true
+    ],
+    [
+        "dimension",
+        3
+    ],
+    [
+        "op1",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/06_get_gm/sub-01_T1w_ras_valid_corrected_labeled_maths_class-02_maths.nii.gz",
+            "15b5ad1fb045a21825739bebb7043f7a"
+        ]
+    ],
+    [
+        "op2",
+        "2"
+    ],
+    [
+        "operation",
+        "FillHoles"
+    ],
+    [
+        "needed_outputs",
+        [
+            "output_image"
+        ]
+    ]
+]

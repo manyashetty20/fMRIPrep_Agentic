@@ -1,0 +1,23 @@
+[
+    [
+        "bids_dir",
+        "/data"
+    ],
+    [
+        "bids_validate",
+        false
+    ],
+    [
+        "in_file",
+        [
+            "/data/sub-01/anat/sub-01_T1w.nii.gz",
+            "297fb95798707ef17b8fc5e32e1bd9b1"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "subject"
+        ]
+    ]
+]

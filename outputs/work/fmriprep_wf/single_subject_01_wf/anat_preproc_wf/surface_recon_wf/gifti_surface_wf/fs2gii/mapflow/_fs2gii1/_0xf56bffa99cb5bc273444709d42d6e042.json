@@ -1,0 +1,23 @@
+[
+    [
+        "in_file",
+        [
+            "/out/freesurfer/sub-01/surf/lh.smoothwm",
+            "475d5d97fb3fd0ee123d27a48618b538"
+        ]
+    ],
+    [
+        "out_datatype",
+        "gii"
+    ],
+    [
+        "subjects_dir",
+        "/opt/freesurfer/subjects"
+    ],
+    [
+        "needed_outputs",
+        [
+            "converted"
+        ]
+    ]
+]

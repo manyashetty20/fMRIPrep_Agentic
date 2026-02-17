@@ -1,0 +1,16 @@
+[
+    [
+        "command",
+        "/usr/local/miniconda/bin/fmriprep /data /out participant --skip-bids-validation --anat-only --sloppy --low-mem --mem_mb 4000 --nprocs 1 -w /out/work"
+    ],
+    [
+        "version",
+        "20.2.0"
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_report"
+        ]
+    ]
+]

@@ -1,0 +1,13 @@
+------------------------------
+SUBJECT sub-01
+START_TIME Mon Feb 16 20:50:28 UTC 2026
+END_TIME Mon Feb 16 21:04:06 UTC 2026
+RUNTIME_HOURS 0.227
+USER root
+HOST efad4839b3da
+PROCESSOR x86_64
+OS Linux
+UNAME Linux efad4839b3da 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+VERSION $Id: recon-all,v 1.580.2.16 2017/01/18 14:11:24 zkaufman Exp $
+CMDPATH /opt/freesurfer/bin/recon-all
+CMDARGS -autorecon3 -openmp 8 -subjid sub-01 -sd /out/freesurfer -nosphere -nosurfreg -nojacobian_white -noavgcurv -nocortparc -nopial -noparcstats -nocortparc2 -noparcstats2 -nocortparc3 -noparcstats3 -nopctsurfcon -nocortribbon -nobalabels

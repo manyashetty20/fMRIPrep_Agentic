@@ -1,0 +1,22 @@
+[
+    [
+        "in_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf/fs2gii/mapflow/_fs2gii2/lh.pial_converted.gii",
+            "dbbf0a3b5c33c6210c024a3872b9c830"
+        ]
+    ],
+    [
+        "transform_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/fsnative2t1w_xfm/T1_robustreg.lta",
+            "62795fab1ccea4a947942127dd35412e"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]

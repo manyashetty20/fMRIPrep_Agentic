@@ -1,0 +1,27 @@
+[
+    [
+        "copy_header",
+        true
+    ],
+    [
+        "dimension",
+        3
+    ],
+    [
+        "op1",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/04_sel_labels/sub-01_T1w_ras_valid_corrected_labeled_maths_class-03.nii.gz",
+            "e996f0c35b33e77a5433f8925e2baf75"
+        ]
+    ],
+    [
+        "operation",
+        "GetLargestComponent"
+    ],
+    [
+        "needed_outputs",
+        [
+            "output_image"
+        ]
+    ]
+]

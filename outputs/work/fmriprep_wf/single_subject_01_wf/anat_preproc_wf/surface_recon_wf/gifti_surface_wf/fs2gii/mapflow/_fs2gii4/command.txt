@@ -1,0 +1,2 @@
+mris_convert /out/freesurfer/sub-01/surf/lh.inflated /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf/fs2gii/mapflow/_fs2gii4/lh.inflated_converted.gii
+

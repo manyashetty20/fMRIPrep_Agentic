@@ -1,0 +1,36 @@
+[
+    [
+        "axis",
+        "vstack"
+    ],
+    [
+        "in1",
+        [
+            [
+                "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/inu_n4/mapflow/_inu_n40/sub-01_T1w_ras_valid_maths_corrected.nii.gz",
+                "5bdd86f1687a30fc739799cb6b9c6119"
+            ]
+        ]
+    ],
+    [
+        "in2",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/lap_target/sub-01_T1w_ras_valid_maths_corrected_maths.nii.gz",
+            "0dfb80dfdda5c75b832cab30c7fafcc0"
+        ]
+    ],
+    [
+        "no_flatten",
+        false
+    ],
+    [
+        "ravel_inputs",
+        false
+    ],
+    [
+        "needed_outputs",
+        [
+            "out"
+        ]
+    ]
+]

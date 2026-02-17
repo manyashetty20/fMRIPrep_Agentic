@@ -1,0 +1,23 @@
+[
+    [
+        "bids_root",
+        "/data"
+    ],
+    [
+        "function_str",
+        "def _bids_relative(in_files, bids_root):\n    from pathlib import Path\n    if not isinstance(in_files, (list, tuple)):\n        in_files = [in_files]\n    in_files = [str(Path(p).relative_to(bids_root)) for p in in_files]\n    return in_files\n"
+    ],
+    [
+        "in_files",
+        [
+            "/data/sub-01/anat/sub-01_T1w.nii.gz",
+            "297fb95798707ef17b8fc5e32e1bd9b1"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out"
+        ]
+    ]
+]

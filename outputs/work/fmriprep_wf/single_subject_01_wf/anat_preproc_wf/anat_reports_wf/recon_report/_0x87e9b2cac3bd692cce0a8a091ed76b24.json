@@ -1,0 +1,28 @@
+[
+    [
+        "compress_report",
+        "auto"
+    ],
+    [
+        "hemi",
+        "both"
+    ],
+    [
+        "out_report",
+        "report.svg"
+    ],
+    [
+        "subject_id",
+        "sub-01"
+    ],
+    [
+        "subjects_dir",
+        "/out/freesurfer"
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_report"
+        ]
+    ]
+]

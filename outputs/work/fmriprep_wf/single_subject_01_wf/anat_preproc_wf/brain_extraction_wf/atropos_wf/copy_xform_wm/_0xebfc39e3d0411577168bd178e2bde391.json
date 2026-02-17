@@ -1,0 +1,22 @@
+[
+    [
+        "hdr_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz",
+            "b722cf4c22dade7ef9aa7b1adec061c8"
+        ]
+    ],
+    [
+        "wm_map",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/01_atropos/POSTERIOR_02.nii.gz",
+            "a224d26a8998100ac6b2fb7406142e55"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "wm_map"
+        ]
+    ]
+]

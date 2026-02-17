@@ -1,0 +1,26 @@
+[
+    [
+        "function_str",
+        "def _imsum(op1, op2, out_file=None):\n    import nibabel as nb\n\n    im1 = nb.load(op1)\n\n    data = im1.get_fdata(dtype=\"float32\") + nb.load(op2).get_fdata(dtype=\"float32\")\n    data /= data.max()\n    nii = nb.Nifti1Image(data, im1.affine, im1.header)\n\n    if out_file is None:\n        from pathlib import Path\n\n        out_file = str((Path() / \"summap.nii.gz\").absolute())\n\n    nii.to_filename(out_file)\n    return out_file\n"
+    ],
+    [
+        "op1",
+        [
+            "/home/fmriprep/.cache/templateflow/tpl-OASIS30ANTs/tpl-OASIS30ANTs_res-01_label-WM_probseg.nii.gz",
+            "d258ffdd34b289b67bbd82f1d3973f3f"
+        ]
+    ],
+    [
+        "op2",
+        [
+            "/home/fmriprep/.cache/templateflow/tpl-OASIS30ANTs/tpl-OASIS30ANTs_res-01_label-BS_probseg.nii.gz",
+            "d5edb844667e0d6bcc9471da9fa4eca6"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out"
+        ]
+    ]
+]

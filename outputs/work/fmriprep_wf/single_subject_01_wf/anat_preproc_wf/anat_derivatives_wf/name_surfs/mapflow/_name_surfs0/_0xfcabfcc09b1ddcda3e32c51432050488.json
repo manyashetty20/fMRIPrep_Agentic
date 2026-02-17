@@ -1,0 +1,16 @@
+[
+    [
+        "in_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf/fix_surfs/mapflow/_fix_surfs0/rh.smoothwm_converted.gii",
+            "05016908098e3a289fe2149dd2d177ea"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "hemi",
+            "suffix"
+        ]
+    ]
+]

@@ -1,0 +1,41 @@
+[
+    [
+        "after",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_norm_wf/_template_MNI152NLin2009cAsym/tpl_moving/sub-01_T1w_ras_valid_corrected_xform_trans.nii.gz",
+            "f329c0c16e139d9d56fabb14e07c077a"
+        ]
+    ],
+    [
+        "after_mask",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_norm_wf/_template_MNI152NLin2009cAsym/std_mask/sub-01_T1w_ras_valid_corrected_xform_rbrainmask_trans.nii.gz",
+            "fc94cd52e0b64f0b171452ba50e546a5"
+        ]
+    ],
+    [
+        "before",
+        [
+            "/home/fmriprep/.cache/templateflow/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz",
+            "4d55181c71706cbe32d4f5855a56ec16"
+        ]
+    ],
+    [
+        "function_str",
+        "def _rpt_masks(mask_file, before, after, after_mask=None):\n    from os.path import abspath\n    import nibabel as nb\n    msk = nb.load(mask_file).get_fdata() > 0\n    bnii = nb.load(before)\n    nb.Nifti1Image(bnii.get_fdata() * msk,\n                   bnii.affine, bnii.header).to_filename('before.nii.gz')\n    if after_mask is not None:\n        msk = nb.load(after_mask).get_fdata() > 0\n\n    anii = nb.load(after)\n    nb.Nifti1Image(anii.get_fdata() * msk,\n                   anii.affine, anii.header).to_filename('after.nii.gz')\n    return abspath('before.nii.gz'), abspath('after.nii.gz')\n"
+    ],
+    [
+        "mask_file",
+        [
+            "/home/fmriprep/.cache/templateflow/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_desc-brain_mask.nii.gz",
+            "59341c5d0b339a98118915c2fd82519e"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "after",
+            "before"
+        ]
+    ]
+]

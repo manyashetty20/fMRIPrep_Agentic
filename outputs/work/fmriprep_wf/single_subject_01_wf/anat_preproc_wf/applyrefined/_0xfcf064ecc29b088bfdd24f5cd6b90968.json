@@ -1,0 +1,26 @@
+[
+    [
+        "in_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/copy_xform/sub-01_T1w_ras_valid_corrected_xform.nii.gz",
+            "237572e7ce0a2c13a894e802ff268551"
+        ]
+    ],
+    [
+        "mask_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/refine/sub-01_T1w_ras_valid_corrected_xform_rbrainmask.nii.gz",
+            "f01b3f577b3af555187c884bd754b5b5"
+        ]
+    ],
+    [
+        "output_type",
+        "NIFTI_GZ"
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]

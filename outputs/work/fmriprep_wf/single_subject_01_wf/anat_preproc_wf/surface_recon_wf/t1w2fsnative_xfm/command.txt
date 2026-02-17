@@ -1,0 +1,2 @@
+lta_convert --inlta /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/fsnative2t1w_xfm/T1_robustreg.lta --invert --outlta /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/t1w2fsnative_xfm/out.lta
+

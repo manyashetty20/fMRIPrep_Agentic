@@ -1,0 +1,16 @@
+[
+    [
+        "in_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf/fix_surfs/mapflow/_fix_surfs6/rh.midthickness_converted.gii",
+            "965a971f6309a20a9e783c506236689e"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "hemi",
+            "suffix"
+        ]
+    ]
+]

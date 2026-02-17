@@ -1,0 +1,28 @@
+[
+    [
+        "derivatives",
+        "/out"
+    ],
+    [
+        "freesurfer_home",
+        "/opt/freesurfer"
+    ],
+    [
+        "overwrite_fsaverage",
+        false
+    ],
+    [
+        "spaces",
+        []
+    ],
+    [
+        "subjects_dir",
+        "/out/freesurfer"
+    ],
+    [
+        "needed_outputs",
+        [
+            "subjects_dir"
+        ]
+    ]
+]

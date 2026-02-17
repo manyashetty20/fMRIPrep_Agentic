@@ -1,0 +1,24 @@
+[
+    [
+        "in_brain",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/apply_mask/mapflow/_apply_mask0/sub-01_T1w_ras_valid_corrected_xform_masked.nii.gz",
+            "9001c9b57190eb5b571becc19529d49c"
+        ]
+    ],
+    [
+        "subject_id",
+        "sub-01"
+    ],
+    [
+        "subjects_dir",
+        "/out/freesurfer"
+    ],
+    [
+        "needed_outputs",
+        [
+            "subject_id",
+            "subjects_dir"
+        ]
+    ]
+]

@@ -1,7 +1,7 @@
 import os
 from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain_groq import ChatGroq
-from langchain_community.embeddings import HuggingFaceEmbeddings # Local & Free
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_classic.chains import RetrievalQA
 
@@ -33,11 +33,14 @@ class ConfigAgent:
             retriever=self.vector_db.as_retriever()
         )
 
-    def generate_command(self, bids_dir, participant_id):
+    def generate_command(self, bids_dir, participant_id, has_fmap):
         query = f"""
-        Analyze the setup for participant {participant_id} in {bids_dir}.
-        If no fieldmaps are found in the /fmap folder, suggest the --use-syn-sdc flag.
-        Generate a complete fMRIPrep Docker command.
+        Context: BIDS_DIR={bids_dir}, Sub={participant_id}, Fieldmaps_Found={has_fmap}
+        TASK: Generate a ONE-LINE fMRIPrep Docker command.
+        RULES:
+        1. Use "$PWD/data/bids_input" for the input volume.
+        2. Use "$PWD/outputs" for the output volume.
+        3. Return ONLY the bash code block.
         """
         response = self.qa_chain.invoke(query)
         return response["result"]

@@ -1,0 +1,38 @@
+status file for recon-all
+Mon Feb 16 19:06:46 UTC 2026
+#@# Tessellate rh Mon Feb 16 19:06:46 UTC 2026
+#@# Smooth1 rh Mon Feb 16 19:06:49 UTC 2026
+#@# Inflation1 rh Mon Feb 16 19:06:49 UTC 2026
+#@# QSphere rh Mon Feb 16 19:06:52 UTC 2026
+#@# Fix Topology Copy rh Mon Feb 16 19:07:10 UTC 2026
+#@# Fix Topology rh Mon Feb 16 19:07:10 UTC 2026
+#@# Make White Surf rh Mon Feb 16 20:37:18 UTC 2026
+#@# Smooth2 rh Mon Feb 16 20:37:49 UTC 2026
+#@# Inflation2 rh Mon Feb 16 20:37:50 UTC 2026
+#@# Curv .H and .K rh Mon Feb 16 20:37:52 UTC 2026
+#@# Curvature Stats rh Mon Feb 16 20:38:02 UTC 2026
+#@# Sphere rh Mon Feb 16 20:38:03 UTC 2026
+#@# Surf Reg rh Mon Feb 16 20:40:30 UTC 2026
+#@# Jacobian white rh Mon Feb 16 20:44:46 UTC 2026
+#@# AvgCurv rh Mon Feb 16 20:44:46 UTC 2026
+#@# Cortical Parc rh Mon Feb 16 20:44:47 UTC 2026
+#@# Make Pial Surf rh Mon Feb 16 20:44:50 UTC 2026
+#@# Surf Volume rh Mon Feb 16 20:46:19 UTC 2026
+#@# Cortical Parc 2 rh Mon Feb 16 20:46:20 UTC 2026
+#@# Cortical Parc 3 rh Mon Feb 16 20:46:23 UTC 2026
+#@# WM/GM Contrast rh Mon Feb 16 20:46:26 UTC 2026
+recon-all -s sub-01 finished without error at Mon Feb 16 20:46:28 UTC 2026
+
+
+
+New invocation of recon-all 
+
+
+
+status file for recon-all
+Mon Feb 16 20:48:49 UTC 2026
+#@# Parcellation Stats rh Mon Feb 16 20:48:49 UTC 2026
+#@# Parcellation Stats 2 rh Mon Feb 16 20:49:01 UTC 2026
+#@# Parcellation Stats 3 rh Mon Feb 16 20:49:07 UTC 2026
+#@# BA_exvivo Labels rh Mon Feb 16 20:49:14 UTC 2026
+recon-all -s sub-01 finished without error at Mon Feb 16 20:50:23 UTC 2026

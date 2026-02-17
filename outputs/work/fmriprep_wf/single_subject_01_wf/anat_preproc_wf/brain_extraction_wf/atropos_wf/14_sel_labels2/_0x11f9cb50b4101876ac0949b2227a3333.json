@@ -1,0 +1,27 @@
+[
+    [
+        "function_str",
+        "def _select_labels(in_segm, labels):\n    from os import getcwd\n    import numpy as np\n    import nibabel as nb\n    from nipype.utils.filemanip import fname_presuffix\n\n    out_files = []\n\n    cwd = getcwd()\n    nii = nb.load(in_segm)\n    label_data = np.asanyarray(nii.dataobj).astype(\"uint8\")\n    for label in labels:\n        newnii = nii.__class__(np.uint8(label_data == label), nii.affine, nii.header)\n        newnii.set_data_dtype(\"uint8\")\n        out_file = fname_presuffix(in_segm, suffix=\"_class-%02d\" % label, newpath=cwd)\n        newnii.to_filename(out_file)\n        out_files.append(out_file)\n    return out_files\n"
+    ],
+    [
+        "in_segm",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/13_add_gm_wm/09_relabel_wm_maths.nii.gz",
+            "614716d681bbde6b81d9121cb3d5578a"
+        ]
+    ],
+    [
+        "labels",
+        [
+            2,
+            3
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_gm",
+            "out_wm"
+        ]
+    ]
+]

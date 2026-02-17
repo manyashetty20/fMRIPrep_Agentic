@@ -1,0 +1,31 @@
+[
+    [
+        "copy_header",
+        true
+    ],
+    [
+        "dimension",
+        3
+    ],
+    [
+        "op1",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/copy_xform/sub-01_T1w_ras_valid_corrected_xform.nii.gz",
+            "237572e7ce0a2c13a894e802ff268551"
+        ]
+    ],
+    [
+        "op2",
+        "0.01 0.999 256"
+    ],
+    [
+        "operation",
+        "TruncateImageIntensity"
+    ],
+    [
+        "needed_outputs",
+        [
+            "output_image"
+        ]
+    ]
+]

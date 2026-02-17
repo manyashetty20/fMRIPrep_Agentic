@@ -1,0 +1,30 @@
+[
+    [
+        "dimension",
+        3
+    ],
+    [
+        "first_input",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/06_get_gm/sub-01_T1w_ras_valid_corrected_labeled_maths_class-02_maths.nii.gz",
+            "15b5ad1fb045a21825739bebb7043f7a"
+        ]
+    ],
+    [
+        "output_product_image",
+        "08_mult_gm.nii.gz"
+    ],
+    [
+        "second_input",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/07_fill_gm/sub-01_T1w_ras_valid_corrected_labeled_maths_class-02_maths_maths.nii.gz",
+            "52bed0ceb3c0fda363061f5e361210b3"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "output_product_image"
+        ]
+    ]
+]

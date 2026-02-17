@@ -1,0 +1,19 @@
+[
+    [
+        "function_str",
+        "def _split_segments(in_file):\n    from pathlib import Path\n    import numpy as np\n    import nibabel as nb\n\n    segimg = nb.load(in_file)\n    data = np.int16(segimg.dataobj)\n    hdr = segimg.header.copy()\n    hdr.set_data_dtype('uint8')\n\n    out_files = []\n    for i, label in enumerate((\"GM\", \"WM\", \"CSF\"), 1):\n        out_fname = str(Path.cwd() / f\"aseg_label-{label}_mask.nii.gz\")\n        segimg.__class__(data == i, segimg.affine, hdr).to_filename(out_fname)\n        out_files.append(out_fname)\n\n    return out_files\n"
+    ],
+    [
+        "in_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/lut_t1w_dseg/seg_dseg.nii.gz",
+            "c4606a906c20d6a9bc3735bcc0db3a59"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out"
+        ]
+    ]
+]

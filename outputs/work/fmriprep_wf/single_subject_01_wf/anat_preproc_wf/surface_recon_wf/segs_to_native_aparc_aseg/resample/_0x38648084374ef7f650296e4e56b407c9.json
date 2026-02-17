@@ -1,0 +1,37 @@
+[
+    [
+        "lta_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/fsnative2t1w_xfm/T1_robustreg.lta",
+            "62795fab1ccea4a947942127dd35412e"
+        ]
+    ],
+    [
+        "source_file",
+        [
+            "/out/freesurfer/sub-01/mri/aparc+aseg.mgz",
+            "6bc5e2ccbb576b1d144f8ac18288ad83"
+        ]
+    ],
+    [
+        "subjects_dir",
+        "/opt/freesurfer/subjects"
+    ],
+    [
+        "target_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/copy_xform/sub-01_T1w_ras_valid_corrected_xform.nii.gz",
+            "237572e7ce0a2c13a894e802ff268551"
+        ]
+    ],
+    [
+        "transformed_file",
+        "seg.nii.gz"
+    ],
+    [
+        "needed_outputs",
+        [
+            "transformed_file"
+        ]
+    ]
+]

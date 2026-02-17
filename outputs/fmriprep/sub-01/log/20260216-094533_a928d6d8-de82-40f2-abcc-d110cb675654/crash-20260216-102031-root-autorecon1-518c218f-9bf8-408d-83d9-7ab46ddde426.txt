@@ -1,0 +1,743 @@
+Node: fmriprep_wf.single_subject_01_wf.anat_preproc_wf.surface_recon_wf.autorecon1
+Working directory: /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/autorecon1
+
+Node inputs:
+
+FLAIR_file = <undefined>
+T1_files = <undefined>
+T2_file = <undefined>
+args = <undefined>
+big_ventricles = <undefined>
+brainstem = <undefined>
+directive = autorecon1
+environ = {}
+expert = <undefined>
+flags = <undefined>
+hemi = <undefined>
+hippocampal_subfields_T1 = <undefined>
+hippocampal_subfields_T2 = <undefined>
+hires = <undefined>
+mprage = <undefined>
+mri_aparc2aseg = <undefined>
+mri_ca_label = <undefined>
+mri_ca_normalize = <undefined>
+mri_ca_register = <undefined>
+mri_edit_wm_with_aseg = <undefined>
+mri_em_register = <undefined>
+mri_fill = <undefined>
+mri_mask = <undefined>
+mri_normalize = <undefined>
+mri_pretess = <undefined>
+mri_remove_neck = <undefined>
+mri_segment = <undefined>
+mri_segstats = <undefined>
+mri_tessellate = <undefined>
+mri_watershed = <undefined>
+mris_anatomical_stats = <undefined>
+mris_ca_label = <undefined>
+mris_fix_topology = <undefined>
+mris_inflate = <undefined>
+mris_make_surfaces = <undefined>
+mris_register = <undefined>
+mris_smooth = <undefined>
+mris_sphere = <undefined>
+mris_surf2vol = <undefined>
+mrisp_paint = <undefined>
+openmp = 8
+parallel = <undefined>
+steps = <undefined>
+subject_id = recon_all
+subjects_dir = <undefined>
+talairach = <undefined>
+use_FLAIR = <undefined>
+use_T2 = <undefined>
+xopts = <undefined>
+
+Traceback (most recent call last):
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/pipeline/plugins/multiproc.py", line 67, in run_node
+    result["result"] = node.run(updatehash=updatehash)
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/pipeline/engine/nodes.py", line 516, in run
+    result = self._run_interface(execute=True)
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/pipeline/engine/nodes.py", line 635, in _run_interface
+    return self._run_command(execute)
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/pipeline/engine/nodes.py", line 741, in _run_command
+    result = self._interface.run(cwd=outdir)
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/interfaces/base/core.py", line 419, in run
+    runtime = self._run_interface(runtime)
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/interfaces/base/core.py", line 814, in _run_interface
+    self.raise_exception(runtime)
+  File "/usr/local/miniconda/lib/python3.7/site-packages/nipype/interfaces/base/core.py", line 745, in raise_exception
+    ).format(**runtime.dictcopy())
+RuntimeError: Command:
+recon-all -autorecon1 -i /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz -noskullstrip -openmp 8 -subjid sub-01 -sd /out/freesurfer
+Standard output:
+Subject Stamp: freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1-f53a55a
+Current Stamp: freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1-f53a55a
+INFO: SUBJECTS_DIR is /out/freesurfer
+Actual FREESURFER_HOME /opt/freesurfer
+Linux 979c42b372d0 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+'/opt/freesurfer/bin/recon-all' -> '/out/freesurfer/sub-01/scripts/recon-all.local-copy'
+/out/freesurfer/sub-01
+
+ mri_convert /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz /out/freesurfer/sub-01/mri/orig/001.mgz 
+
+mri_convert.bin /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz /out/freesurfer/sub-01/mri/orig/001.mgz 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (1, 0, 0)
+j_ras = (0, 1, 0)
+k_ras = (0, 0, 1)
+writing to /out/freesurfer/sub-01/mri/orig/001.mgz...
+#--------------------------------------------
+#@# MotionCor Mon Feb 16 10:05:52 UTC 2026
+Found 1 runs
+/out/freesurfer/sub-01/mri/orig/001.mgz
+Checking for (invalid) multi-frame inputs...
+WARNING: only one run found. This is OK, but motion
+correction cannot be performed on one run, so I'll
+copy the run to rawavg and continue.
+
+ cp /out/freesurfer/sub-01/mri/orig/001.mgz /out/freesurfer/sub-01/mri/rawavg.mgz 
+
+/out/freesurfer/sub-01
+
+ mri_convert /out/freesurfer/sub-01/mri/rawavg.mgz /out/freesurfer/sub-01/mri/orig.mgz --conform 
+
+mri_convert.bin /out/freesurfer/sub-01/mri/rawavg.mgz /out/freesurfer/sub-01/mri/orig.mgz --conform 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from /out/freesurfer/sub-01/mri/rawavg.mgz...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (1, 0, 0)
+j_ras = (0, 1, 0)
+k_ras = (0, 0, 1)
+changing data type from float to uchar (noscale = 0)...
+MRIchangeType: Building histogram 
+Reslicing using trilinear interpolation 
+writing to /out/freesurfer/sub-01/mri/orig.mgz...
+
+ mri_add_xform_to_header -c /out/freesurfer/sub-01/mri/transforms/talairach.xfm /out/freesurfer/sub-01/mri/orig.mgz /out/freesurfer/sub-01/mri/orig.mgz 
+
+INFO: extension is mgz
+#--------------------------------------------
+#@# Talairach Mon Feb 16 10:06:08 UTC 2026
+/out/freesurfer/sub-01/mri
+
+ mri_nu_correct.mni --no-rescale --i orig.mgz --o orig_nu.mgz --n 1 --proto-iters 1000 --distance 50 
+
+/out/freesurfer/sub-01/mri
+/opt/freesurfer/bin/mri_nu_correct.mni
+--no-rescale --i orig.mgz --o orig_nu.mgz --n 1 --proto-iters 1000 --distance 50
+nIters 1
+$Id: mri_nu_correct.mni,v 1.27 2016/02/26 16:19:49 mreuter Exp $
+Linux 979c42b372d0 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+Mon Feb 16 10:06:09 UTC 2026
+Program nu_correct, built from:
+Package MNI N3, version 1.12.0, compiled by nicks@terrier (x86_64-unknown-linux-gnu) on 2015-06-19 at 01:25:34
+/usr/bin/bc
+tmpdir is ./tmp.mri_nu_correct.mni.359
+/out/freesurfer/sub-01/mri
+mri_convert orig.mgz ./tmp.mri_nu_correct.mni.359/nu0.mnc -odt float
+mri_convert.bin orig.mgz ./tmp.mri_nu_correct.mni.359/nu0.mnc -odt float 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from orig.mgz...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, 0, 0)
+j_ras = (0, 0, -1)
+k_ras = (0, 1, 0)
+changing data type from uchar to float (noscale = 0)...
+writing to ./tmp.mri_nu_correct.mni.359/nu0.mnc...
+ 
+--------------------------------------------------------
+Iteration 1 Mon Feb 16 10:06:26 UTC 2026
+nu_correct -clobber ./tmp.mri_nu_correct.mni.359/nu0.mnc ./tmp.mri_nu_correct.mni.359/nu1.mnc -tmpdir ./tmp.mri_nu_correct.mni.359/0/ -iterations 1000 -distance 50
+[root@979c42b372d0:/out/freesurfer/sub-01/mri/] [2026-02-16 10:06:27] running:
+  /opt/freesurfer/mni/bin/nu_estimate_np_and_em -parzen -log -sharpen 0.15 0.01 -iterations 1000 -stop 0.001 -shrink 4 -auto_mask -nonotify -b_spline 1.0e-7 -distance 50 -quiet -execute -clobber -nokeeptmp -tmpdir ./tmp.mri_nu_correct.mni.359/0/ ./tmp.mri_nu_correct.mni.359/nu0.mnc ./tmp.mri_nu_correct.mni.359/nu1.imp
+
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Number of iterations: 57 
+CV of field change: 0.000963786
+Outputting Volume: ............................................................
+ 
+ 
+ 
+mri_convert ./tmp.mri_nu_correct.mni.359/nu1.mnc orig_nu.mgz --like orig.mgz --conform
+mri_convert.bin ./tmp.mri_nu_correct.mni.359/nu1.mnc orig_nu.mgz --like orig.mgz --conform 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from ./tmp.mri_nu_correct.mni.359/nu1.mnc...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, 0, 0)
+j_ras = (0, 0, -1)
+k_ras = (0, 1, 0)
+INFO: transform src into the like-volume: orig.mgz
+changing data type from float to uchar (noscale = 0)...
+MRIchangeType: Building histogram 
+writing to orig_nu.mgz...
+ 
+ 
+Mon Feb 16 10:12:37 UTC 2026
+mri_nu_correct.mni done
+
+ talairach_avi --i orig_nu.mgz --xfm transforms/talairach.auto.xfm 
+
+talairach_avi log file is transforms/talairach_avi.log...
+Started at Mon Feb 16 10:12:37 UTC 2026
+Ended   at Mon Feb 16 10:13:42 UTC 2026
+talairach_avi done
+
+ cp transforms/talairach.auto.xfm transforms/talairach.xfm 
+
+#--------------------------------------------
+#@# Talairach Failure Detection Mon Feb 16 10:13:45 UTC 2026
+/out/freesurfer/sub-01/mri
+
+ talairach_afd -T 0.005 -xfm transforms/talairach.xfm 
+
+ERROR: talairach_afd: Talairach Transform: transforms/talairach.xfm ***FAILED*** (p=0.0000, pval=0.0000 < threshold=0.0050)
+
+Manual Talairach alignment may be necessary, or
+include the -notal-check flag to skip this test,
+making sure the -notal-check flag follows -all
+or -autorecon1 in the command string.
+See:
+
+http://surfer.nmr.mgh.harvard.edu/fswiki/FsTutorial/Talairach
+
+INFO: Retrying Talairach align using 3T-based atlas...
+
+#--------------------------------------------
+#@# Talairach Mon Feb 16 10:13:45 UTC 2026
+/out/freesurfer/sub-01/mri
+
+ mri_nu_correct.mni --no-rescale --i orig.mgz --o orig_nu.mgz --n 1 --proto-iters 1000 --distance 50 
+
+/out/freesurfer/sub-01/mri
+/opt/freesurfer/bin/mri_nu_correct.mni
+--no-rescale --i orig.mgz --o orig_nu.mgz --n 1 --proto-iters 1000 --distance 50
+nIters 1
+$Id: mri_nu_correct.mni,v 1.27 2016/02/26 16:19:49 mreuter Exp $
+Linux 979c42b372d0 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+Mon Feb 16 10:13:46 UTC 2026
+Program nu_correct, built from:
+Package MNI N3, version 1.12.0, compiled by nicks@terrier (x86_64-unknown-linux-gnu) on 2015-06-19 at 01:25:34
+/usr/bin/bc
+tmpdir is ./tmp.mri_nu_correct.mni.1298
+/out/freesurfer/sub-01/mri
+mri_convert orig.mgz ./tmp.mri_nu_correct.mni.1298/nu0.mnc -odt float
+mri_convert.bin orig.mgz ./tmp.mri_nu_correct.mni.1298/nu0.mnc -odt float 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from orig.mgz...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, 0, 0)
+j_ras = (0, 0, -1)
+k_ras = (0, 1, 0)
+changing data type from uchar to float (noscale = 0)...
+writing to ./tmp.mri_nu_correct.mni.1298/nu0.mnc...
+ 
+--------------------------------------------------------
+Iteration 1 Mon Feb 16 10:13:51 UTC 2026
+nu_correct -clobber ./tmp.mri_nu_correct.mni.1298/nu0.mnc ./tmp.mri_nu_correct.mni.1298/nu1.mnc -tmpdir ./tmp.mri_nu_correct.mni.1298/0/ -iterations 1000 -distance 50
+[root@979c42b372d0:/out/freesurfer/sub-01/mri/] [2026-02-16 10:13:52] running:
+  /opt/freesurfer/mni/bin/nu_estimate_np_and_em -parzen -log -sharpen 0.15 0.01 -iterations 1000 -stop 0.001 -shrink 4 -auto_mask -nonotify -b_spline 1.0e-7 -distance 50 -quiet -execute -clobber -nokeeptmp -tmpdir ./tmp.mri_nu_correct.mni.1298/0/ ./tmp.mri_nu_correct.mni.1298/nu0.mnc ./tmp.mri_nu_correct.mni.1298/nu1.imp
+
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Number of iterations: 57 
+CV of field change: 0.000963786
+ 
+ 
+ 
+mri_convert ./tmp.mri_nu_correct.mni.1298/nu1.mnc orig_nu.mgz --like orig.mgz --conform
+mri_convert.bin ./tmp.mri_nu_correct.mni.1298/nu1.mnc orig_nu.mgz --like orig.mgz --conform 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from ./tmp.mri_nu_correct.mni.1298/nu1.mnc...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, 0, 0)
+j_ras = (0, 0, -1)
+k_ras = (0, 1, 0)
+INFO: transform src into the like-volume: orig.mgz
+changing data type from float to uchar (noscale = 0)...
+MRIchangeType: Building histogram 
+writing to orig_nu.mgz...
+ 
+ 
+Mon Feb 16 10:16:33 UTC 2026
+mri_nu_correct.mni done
+
+ talairach_avi --i orig_nu.mgz --xfm transforms/talairach.auto.xfm --atlas 3T18yoSchwartzReactN32_as_orig 
+
+talairach_avi log file is transforms/talairach_avi.log...
+Started at Mon Feb 16 10:16:34 UTC 2026
+Ended   at Mon Feb 16 10:17:16 UTC 2026
+talairach_avi done
+
+ cp transforms/talairach.auto.xfm transforms/talairach.xfm 
+
+#--------------------------------------------
+#@# Talairach Failure Detection Mon Feb 16 10:17:18 UTC 2026
+/out/freesurfer/sub-01/mri
+
+ talairach_afd -T 0.005 -xfm transforms/talairach.xfm 
+
+ERROR: talairach_afd: Talairach Transform: transforms/talairach.xfm ***FAILED*** (p=0.0000, pval=0.0000 < threshold=0.0050)
+
+Manual Talairach alignment may be necessary, or
+include the -notal-check flag to skip this test,
+making sure the -notal-check flag follows -all
+or -autorecon1 in the command string.
+See:
+
+http://surfer.nmr.mgh.harvard.edu/fswiki/FsTutorial/Talairach
+
+INFO: Trying MINC mritotal to perform Talairach align...
+
+#--------------------------------------------
+#@# Talairach Mon Feb 16 10:17:19 UTC 2026
+/out/freesurfer/sub-01/mri
+
+ mri_nu_correct.mni --no-rescale --i orig.mgz --o orig_nu.mgz --n 1 --proto-iters 1000 --distance 50 
+
+/out/freesurfer/sub-01/mri
+/opt/freesurfer/bin/mri_nu_correct.mni
+--no-rescale --i orig.mgz --o orig_nu.mgz --n 1 --proto-iters 1000 --distance 50
+nIters 1
+$Id: mri_nu_correct.mni,v 1.27 2016/02/26 16:19:49 mreuter Exp $
+Linux 979c42b372d0 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+Mon Feb 16 10:17:20 UTC 2026
+Program nu_correct, built from:
+Package MNI N3, version 1.12.0, compiled by nicks@terrier (x86_64-unknown-linux-gnu) on 2015-06-19 at 01:25:34
+/usr/bin/bc
+tmpdir is ./tmp.mri_nu_correct.mni.2239
+/out/freesurfer/sub-01/mri
+mri_convert orig.mgz ./tmp.mri_nu_correct.mni.2239/nu0.mnc -odt float
+mri_convert.bin orig.mgz ./tmp.mri_nu_correct.mni.2239/nu0.mnc -odt float 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from orig.mgz...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, 0, 0)
+j_ras = (0, 0, -1)
+k_ras = (0, 1, 0)
+changing data type from uchar to float (noscale = 0)...
+writing to ./tmp.mri_nu_correct.mni.2239/nu0.mnc...
+ 
+--------------------------------------------------------
+Iteration 1 Mon Feb 16 10:17:24 UTC 2026
+nu_correct -clobber ./tmp.mri_nu_correct.mni.2239/nu0.mnc ./tmp.mri_nu_correct.mni.2239/nu1.mnc -tmpdir ./tmp.mri_nu_correct.mni.2239/0/ -iterations 1000 -distance 50
+[root@979c42b372d0:/out/freesurfer/sub-01/mri/] [2026-02-16 10:17:25] running:
+  /opt/freesurfer/mni/bin/nu_estimate_np_and_em -parzen -log -sharpen 0.15 0.01 -iterations 1000 -stop 0.001 -shrink 4 -auto_mask -nonotify -b_spline 1.0e-7 -distance 50 -quiet -execute -clobber -nokeeptmp -tmpdir ./tmp.mri_nu_correct.mni.2239/0/ ./tmp.mri_nu_correct.mni.2239/nu0.mnc ./tmp.mri_nu_correct.mni.2239/nu1.imp
+
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Processing:.................................................................Done
+Number of iterations: 57 
+CV of field change: 0.000963786
+ 
+ 
+ 
+mri_convert ./tmp.mri_nu_correct.mni.2239/nu1.mnc orig_nu.mgz --like orig.mgz --conform
+mri_convert.bin ./tmp.mri_nu_correct.mni.2239/nu1.mnc orig_nu.mgz --like orig.mgz --conform 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from ./tmp.mri_nu_correct.mni.2239/nu1.mnc...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, 0, 0)
+j_ras = (0, 0, -1)
+k_ras = (0, 1, 0)
+INFO: transform src into the like-volume: orig.mgz
+changing data type from float to uchar (noscale = 0)...
+MRIchangeType: Building histogram 
+writing to orig_nu.mgz...
+ 
+ 
+Mon Feb 16 10:20:09 UTC 2026
+mri_nu_correct.mni done
+
+ talairach --i orig_nu.mgz --xfm transforms/talairach.auto.xfm 
+
+/out/freesurfer/sub-01/mri
+/opt/freesurfer/bin/talairach
+--i orig_nu.mgz --xfm transforms/talairach.auto.xfm
+$Id: talairach,v 1.8 2016/02/16 17:17:20 zkaufman Exp $
+Linux 979c42b372d0 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+Mon Feb 16 10:20:10 UTC 2026
+tmpdir is transforms/tmp.talairach.3044
+/out/freesurfer/sub-01/mri
+mri_convert orig_nu.mgz transforms/tmp.talairach.3044/src.mnc
+mri_convert.bin orig_nu.mgz transforms/tmp.talairach.3044/src.mnc 
+$Id: mri_convert.c,v 1.226 2016/02/26 16:15:24 mreuter Exp $
+reading from orig_nu.mgz...
+TR=0.00, TE=0.00, TI=0.00, flip angle=0.00
+i_ras = (-1, 0, 0)
+j_ras = (0, 0, -1)
+k_ras = (0, 1, 0)
+writing to transforms/tmp.talairach.3044/src.mnc...
+--------------------------------------------
+mritotal -verbose -debug -clobber -modeldir /opt/freesurfer/mni/bin/../share/mni_autoreg -protocol icbm transforms/tmp.talairach.3044/src.mnc transforms/talairach.auto.xfm
+Transforming slices:................................................................................................................................Done
+Copying chunks:......................................................................................................................................................Done.
+Copying chunks:..........................................................................................................Done.
+Transforming slices:......................................................................................................................................................Done
+Copying chunks:....................................................................................................................Done.
+Copying chunks:....................................................................................................................Done.
+Source volume size:  75  by 106  by 106 
+Source voxel size =    2.000    2.000    2.000
+Source min/max real range =   -0.000  143.472
+Source min/max voxel=   -0.000  143.472
+
+Target volume size:  58  by 110  by 86 
+Target voxel =    2.000    2.000    2.000
+Target min/max real range=    0.970  123.710
+Target min/max voxel =   -0.000  123.710
+
+
+AFTER init_params()
+Transform matrix    =    1.0000    0.0000    0.0000   30.4457 
+                         0.0000    1.0000    0.0000   78.5809 
+                         0.0000    0.0000    1.0000  102.1838 
+
+Transform center   =  -30.118  -96.172  -92.729
+Transform rotations  =    0.000    0.000    0.000
+Transform trans    =   30.446   78.581  102.184
+Transform scale    =    1.000    1.000    1.000
+Transform shear    =    0.000    0.000    0.000
+
+Source volume is smallest
+Lattice step size  =    4.000    4.000    4.000
+Lattice start      =   20.169 -138.446  -46.500
+Lattice count      =       26       26       23
+
+Source volume size:  85  by 116  by 116 
+Source voxel size =    2.000    2.000    2.000
+Source min/max real range =   -0.000  162.314
+Source min/max voxel=   -0.000  162.314
+
+Target volume size:  68  by 110  by 86 
+Target voxel =    2.000    2.000    2.000
+Target min/max real range=   -0.000  144.070
+Target min/max voxel =   -0.000  144.070
+
+
+AFTER init_params()
+Transform matrix    =    1.8949    1.6458    0.5380  263.9487 
+                        -1.6590    1.9540   -0.1342  105.6026 
+                        -0.4956   -0.2486    2.5062  191.5209 
+
+Transform center   =  -30.118  -96.172  -92.729
+Transform rotations  =   -0.099    0.194   -0.719
+Transform trans    =   28.833   76.267   90.690
+Transform scale    =    2.567    2.567    2.567
+Transform shear    =   -0.000    0.000    0.000
+
+Source volume is smallest
+Lattice step size  =    4.000    4.000    4.000
+Lattice start      =   10.169 -136.446  -56.500
+Lattice count      =       21       21       20
+
+Source volume size:  85  by 116  by 116 
+Source voxel size =    2.000    2.000    2.000
+Source min/max real range =    0.041   18.392
+Source min/max voxel=    0.041   18.392
+
+Target volume size:  68  by 110  by 86 
+Target voxel =    2.000    2.000    2.000
+Target min/max real range=    0.037   11.652
+Target min/max voxel =    0.037   11.652
+
+
+AFTER init_params()
+Transform matrix    =    1.8418    1.8045   -0.0599  224.3500 
+                        -1.8053    1.8392   -0.1018   94.3809 
+                        -0.0286    0.1146    2.5764  248.6842 
+
+Transform center   =  -30.118  -96.172  -92.729
+Transform rotations  =    0.044    0.011   -0.775
+Transform trans    =   31.007   77.491   92.339
+Transform scale    =    2.579    2.579    2.579
+Transform shear    =   -0.000   -0.000    0.000
+
+Target volume is smallest
+Lattice step size  =    4.000    4.000    4.000
+Lattice start      =  -65.095 -105.510  -57.250
+Lattice count      =       35       46       34
+
+Source volume size:  85  by 116  by 116 
+Source voxel size =    2.000    2.000    2.000
+Source min/max real range =    0.041   18.392
+Source min/max voxel=    0.041   18.392
+
+Target volume size:  68  by 110  by 86 
+Target voxel =    2.000    2.000    2.000
+Target min/max real range=    0.037   11.652
+Target min/max voxel =    0.037   11.652
+
+
+AFTER init_params()
+Transform matrix    =    1.7623    1.8705   -0.2732  203.3398 
+                        -1.8902    1.7484   -0.2220   76.5771 
+                         0.0242    0.3512    2.5603  273.8072 
+
+Transform center   =  -30.118  -96.172  -92.729
+Transform rotations  =    0.136   -0.009   -0.820
+Transform trans    =   25.832   82.111   94.619
+Transform scale    =    2.584    2.584    2.584
+Transform shear    =    0.000   -0.000   -0.000
+
+Target volume is smallest
+Lattice step size  =    4.000    4.000    4.000
+Lattice start      =  -65.095 -105.510  -57.250
+Lattice count      =       35       46       34
+
+Source volume size:  85  by 116  by 116 
+Source voxel size =    2.000    2.000    2.000
+Source min/max real range =    0.041   18.392
+Source min/max voxel=    0.041   18.392
+
+Target volume size:  68  by 110  by 86 
+Target voxel =    2.000    2.000    2.000
+Target min/max real range=    0.037   11.652
+Target min/max voxel =    0.037   11.652
+
+
+AFTER init_params()
+Transform matrix    =    1.1947    1.5150   -0.2453  160.8312 
+                        -2.3303    1.8123   -0.1561   78.5776 
+                         0.0983    0.3581    2.6902  284.8832 
+
+Transform center   =  -30.118  -96.172  -92.729
+Transform rotations  =    0.132   -0.036   -0.909
+Transform trans    =   32.009   85.118   90.756
+Transform scale    =    1.945    2.956    2.716
+Transform shear    =    0.000   -0.000   -0.000
+
+Target volume is smallest
+Lattice step size  =    4.000    4.000    4.000
+Lattice start      =  -65.095 -105.510  -57.250
+Lattice count      =       35       46       34
+
+Source volume size:  85  by 116  by 116 
+Source voxel size =    2.000    2.000    2.000
+Source min/max real range =    0.041   18.392
+Source min/max voxel=    0.041   18.392
+
+Target volume size:  68  by 110  by 86 
+Target voxel =    2.000    2.000    2.000
+Target min/max real range=    0.037   11.652
+Target min/max voxel =    0.037   11.652
+
+
+AFTER init_params()
+Transform matrix    =    1.2141    1.4878   -0.2958  153.8704 
+                        -2.3331    1.8650   -0.1959   80.0314 
+                         0.1229    0.4384    2.7096  294.5729 
+
+Transform center   =  -30.118  -96.172  -92.729
+Transform rotations  =    0.160   -0.045   -0.895
+Transform trans    =   31.767   85.275   90.177
+Transform scale    =    1.943    2.993    2.748
+Transform shear    =    0.000    0.000    0.000
+
+Target volume is smallest
+Lattice step size  =    4.000    4.000    4.000
+Lattice start      =  -65.095 -105.510  -57.250
+Lattice count      =       35       46       34
+
+ 
+ 
+Mon Feb 16 10:20:25 UTC 2026
+talairach done
+
+ cp transforms/talairach.auto.xfm transforms/talairach.xfm 
+
+#--------------------------------------------
+#@# Talairach Failure Detection Mon Feb 16 10:20:28 UTC 2026
+/out/freesurfer/sub-01/mri
+
+ talairach_afd -T 0.005 -xfm transforms/talairach.xfm 
+
+ERROR: talairach_afd: Talairach Transform: transforms/talairach.xfm ***FAILED*** (p=0.0000, pval=0.0000 < threshold=0.0050)
+
+Manual Talairach alignment may be necessary, or
+include the -notal-check flag to skip this test,
+making sure the -notal-check flag follows -all
+or -autorecon1 in the command string.
+See:
+
+http://surfer.nmr.mgh.harvard.edu/fswiki/FsTutorial/Talairach
+
+
+ERROR: Talairach failed!
+
+Linux 979c42b372d0 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+
+recon-all -s sub-01 exited with ERRORS at Mon Feb 16 10:20:28 UTC 2026
+
+For more details, see the log file /out/freesurfer/sub-01/scripts/recon-all.log
+To report a problem, see http://surfer.nmr.mgh.harvard.edu/fswiki/BugReporting
+
+Standard error:
+
+Return code: 1

@@ -1,0 +1,2 @@
+ImageMath 3 sub-01_T1w_ras_valid_corrected_labeled_maths_class-03_maths.nii.gz GetLargestComponent /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/04_sel_labels/sub-01_T1w_ras_valid_corrected_labeled_maths_class-03.nii.gz
+

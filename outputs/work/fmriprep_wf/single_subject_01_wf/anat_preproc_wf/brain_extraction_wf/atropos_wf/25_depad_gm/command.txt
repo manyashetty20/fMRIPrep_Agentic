@@ -1,0 +1,2 @@
+ImageMath 3 12_relabel_gm_maths.nii.gz PadImage /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/12_relabel_gm/12_relabel_gm.nii.gz -10
+

@@ -1,0 +1,33 @@
+[
+    [
+        "function_str",
+        "def _improd(op1, op2, in_mask, out_file=None):\n    import nibabel as nb\n\n    im1 = nb.load(op1)\n\n    data = im1.get_fdata(dtype=\"float32\") * nb.load(op2).get_fdata(dtype=\"float32\")\n    mskdata = nb.load(in_mask).get_fdata() > 0\n    data[~mskdata] = 0\n    data[data < 0] = 0\n    data /= data.max()\n    data = 0.5 * (data + mskdata)\n    nii = nb.Nifti1Image(data, im1.affine, im1.header)\n\n    if out_file is None:\n        from pathlib import Path\n\n        out_file = str((Path() / \"prodmap.nii.gz\").absolute())\n\n    nii.to_filename(out_file)\n    return out_file\n"
+    ],
+    [
+        "in_mask",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/thr_brainmask/tpl-OASIS30ANTs_res-01_label-brain_probseg_trans_resampled.nii.gz",
+            "72dbaeec03f8b72ab400f602555ac148"
+        ]
+    ],
+    [
+        "op1",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/copy_xform_wm/POSTERIOR_02_xform.nii.gz",
+            "0916ccf854c5430f6cafd5e2094aab12"
+        ]
+    ],
+    [
+        "op2",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/map_wmmask/summap_trans.nii.gz",
+            "40cc8fc0251708cf91726298f6bfe067"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out"
+        ]
+    ]
+]

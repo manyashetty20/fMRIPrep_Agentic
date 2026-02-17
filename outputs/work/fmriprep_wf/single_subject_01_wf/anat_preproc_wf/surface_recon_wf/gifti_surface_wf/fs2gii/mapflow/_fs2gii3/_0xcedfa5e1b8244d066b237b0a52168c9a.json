@@ -1,0 +1,23 @@
+[
+    [
+        "in_file",
+        [
+            "/out/freesurfer/sub-01/surf/rh.pial",
+            "3826c739cf49e4af9c29adee3aba7e8f"
+        ]
+    ],
+    [
+        "out_datatype",
+        "gii"
+    ],
+    [
+        "subjects_dir",
+        "/opt/freesurfer/subjects"
+    ],
+    [
+        "needed_outputs",
+        [
+            "converted"
+        ]
+    ]
+]

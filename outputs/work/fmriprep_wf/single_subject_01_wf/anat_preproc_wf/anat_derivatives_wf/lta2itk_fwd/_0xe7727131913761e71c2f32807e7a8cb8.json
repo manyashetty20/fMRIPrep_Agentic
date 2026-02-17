@@ -1,0 +1,25 @@
+[
+    [
+        "in_xfms",
+        [
+            [
+                "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/t1w2fsnative_xfm/out.lta",
+                "947f39562613d3285330f671f5a0b9a4"
+            ]
+        ]
+    ],
+    [
+        "inverse",
+        false
+    ],
+    [
+        "out_fmt",
+        "itk"
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_xfm"
+        ]
+    ]
+]

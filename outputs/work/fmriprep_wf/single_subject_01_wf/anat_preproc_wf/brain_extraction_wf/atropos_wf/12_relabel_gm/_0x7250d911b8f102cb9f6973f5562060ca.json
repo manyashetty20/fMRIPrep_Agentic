@@ -1,0 +1,27 @@
+[
+    [
+        "dimension",
+        3
+    ],
+    [
+        "first_input",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/11_add_gm/08_mult_gm_maths.nii.gz",
+            "f5f2e1b4b91b43e2fb2a97f562e20650"
+        ]
+    ],
+    [
+        "output_product_image",
+        "12_relabel_gm.nii.gz"
+    ],
+    [
+        "second_input",
+        "2.0000000000"
+    ],
+    [
+        "needed_outputs",
+        [
+            "output_product_image"
+        ]
+    ]
+]

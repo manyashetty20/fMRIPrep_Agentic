@@ -1,0 +1,35 @@
+[
+    [
+        "clip",
+        true
+    ],
+    [
+        "in_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/inu_n4/mapflow/_inu_n40/sub-01_T1w_ras_valid_maths_corrected.nii.gz",
+            "5bdd86f1687a30fc739799cb6b9c6119"
+        ]
+    ],
+    [
+        "order",
+        3
+    ],
+    [
+        "smooth",
+        true
+    ],
+    [
+        "zooms",
+        [
+            "4.0000000000",
+            "4.0000000000",
+            "4.0000000000"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]

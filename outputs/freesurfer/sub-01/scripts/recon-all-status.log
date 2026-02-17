@@ -1,0 +1,101 @@
+status file for recon-all
+Mon Feb 16 10:05:49 UTC 2026
+#@# MotionCor Mon Feb 16 10:05:52 UTC 2026
+#@# Talairach Mon Feb 16 10:06:08 UTC 2026
+#@# Talairach Failure Detection Mon Feb 16 10:13:45 UTC 2026
+#@# Talairach Mon Feb 16 10:13:45 UTC 2026
+#@# Talairach Failure Detection Mon Feb 16 10:17:18 UTC 2026
+#@# Talairach Mon Feb 16 10:17:19 UTC 2026
+#@# Talairach Failure Detection Mon Feb 16 10:20:28 UTC 2026
+Linux 979c42b372d0 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+
+recon-all -s sub-01 exited with ERRORS at Mon Feb 16 10:20:28 UTC 2026
+
+
+
+
+New invocation of recon-all 
+
+
+
+status file for recon-all
+Mon Feb 16 10:31:10 UTC 2026
+#@# Nu Intensity Correction Mon Feb 16 10:31:10 UTC 2026
+#@# Intensity Normalization Mon Feb 16 10:34:51 UTC 2026
+recon-all -s sub-01 finished without error at Mon Feb 16 10:37:34 UTC 2026
+
+
+
+New invocation of recon-all 
+
+
+
+status file for recon-all
+Mon Feb 16 10:38:48 UTC 2026
+#@# EM Registration Mon Feb 16 10:38:49 UTC 2026
+
+
+
+New invocation of recon-all 
+
+
+
+status file for recon-all
+Mon Feb 16 12:51:12 UTC 2026
+#@# EM Registration Mon Feb 16 12:51:12 UTC 2026
+#@# CA Normalize Mon Feb 16 13:27:38 UTC 2026
+#@# CA Reg Mon Feb 16 13:31:02 UTC 2026
+#@# CA Normalize Mon Feb 16 14:52:27 UTC 2026
+#@# CA Reg Mon Feb 16 14:54:12 UTC 2026
+#@# SubCort Seg Mon Feb 16 16:26:02 UTC 2026
+Linux 87a7076871ed 6.12.54-linuxkit #1 SMP Tue Nov  4 21:21:47 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+
+recon-all -s sub-01 exited with ERRORS at Mon Feb 16 16:29:40 UTC 2026
+
+#@# SubCort Seg Mon Feb 16 17:00:30 UTC 2026
+#@# Merge ASeg Mon Feb 16 17:25:45 UTC 2026
+#@# Intensity Normalization2 Mon Feb 16 17:25:45 UTC 2026
+#@# Mask BFS Mon Feb 16 17:28:13 UTC 2026
+#@# WM Segmentation Mon Feb 16 17:28:14 UTC 2026
+#@# Fill Mon Feb 16 17:29:51 UTC 2026
+recon-all -s sub-01 finished without error at Mon Feb 16 17:30:19 UTC 2026
+
+
+
+New invocation of recon-all 
+
+
+
+status file for recon-all
+Mon Feb 16 17:33:40 UTC 2026
+#@# SubCort Seg Mon Feb 16 17:33:40 UTC 2026
+#@# Merge ASeg Mon Feb 16 18:18:01 UTC 2026
+recon-all -s sub-01 finished without error at Mon Feb 16 18:18:01 UTC 2026
+
+
+
+New invocation of recon-all 
+
+
+
+status file for recon-all
+Mon Feb 16 20:46:36 UTC 2026
+#@# Cortical ribbon mask Mon Feb 16 20:46:36 UTC 2026
+recon-all -s sub-01 finished without error at Mon Feb 16 20:47:06 UTC 2026
+
+
+
+New invocation of recon-all 
+
+
+
+status file for recon-all
+Mon Feb 16 20:50:31 UTC 2026
+#@# Relabel Hypointensities Mon Feb 16 20:50:31 UTC 2026
+#@# AParc-to-ASeg aparc Mon Feb 16 20:50:39 UTC 2026
+#@# AParc-to-ASeg a2009s Mon Feb 16 20:53:55 UTC 2026
+#@# AParc-to-ASeg DKTatlas Mon Feb 16 20:57:18 UTC 2026
+#@# APas-to-ASeg Mon Feb 16 21:00:37 UTC 2026
+#@# ASeg Stats Mon Feb 16 21:00:42 UTC 2026
+#@# WMParc Mon Feb 16 21:01:23 UTC 2026
+recon-all -s sub-01 finished without error at Mon Feb 16 21:04:06 UTC 2026

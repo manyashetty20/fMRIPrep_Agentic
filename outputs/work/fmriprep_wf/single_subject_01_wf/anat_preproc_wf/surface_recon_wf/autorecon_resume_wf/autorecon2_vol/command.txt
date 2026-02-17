@@ -1,0 +1,2 @@
+recon-all -autorecon2-volonly -openmp 8 -subjid sub-01 -sd /out/freesurfer -nogcareg -nocanorm -nocareg -nonormalization2 -nomaskbfs -nosegmentation -nofill
+

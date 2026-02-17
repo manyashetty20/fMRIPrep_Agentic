@@ -1,0 +1,2 @@
+fslmaths /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/copy_xform/sub-01_T1w_ras_valid_corrected_xform.nii.gz -mas /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/refine/sub-01_T1w_ras_valid_corrected_xform_rbrainmask.nii.gz /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/applyrefined/sub-01_T1w_ras_valid_corrected_xform_masked.nii.gz
+

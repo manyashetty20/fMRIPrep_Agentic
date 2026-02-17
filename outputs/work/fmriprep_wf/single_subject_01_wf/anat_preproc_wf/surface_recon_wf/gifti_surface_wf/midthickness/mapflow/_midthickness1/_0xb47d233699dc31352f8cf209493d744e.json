@@ -1,0 +1,35 @@
+[
+    [
+        "distance",
+        "0.5000000000"
+    ],
+    [
+        "in_file",
+        [
+            "/out/freesurfer/sub-01/surf/lh.smoothwm",
+            "475d5d97fb3fd0ee123d27a48618b538"
+        ]
+    ],
+    [
+        "out_name",
+        "midthickness"
+    ],
+    [
+        "sphere",
+        "sphere"
+    ],
+    [
+        "subjects_dir",
+        "/opt/freesurfer/subjects"
+    ],
+    [
+        "thickness",
+        true
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]

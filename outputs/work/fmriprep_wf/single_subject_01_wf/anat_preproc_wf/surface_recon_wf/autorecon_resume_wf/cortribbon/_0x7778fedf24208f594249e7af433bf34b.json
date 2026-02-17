@@ -1,0 +1,35 @@
+[
+    [
+        "parallel",
+        true
+    ],
+    [
+        "steps",
+        [
+            "cortribbon"
+        ]
+    ],
+    [
+        "subject_id",
+        "sub-01"
+    ],
+    [
+        "subjects_dir",
+        "/out/freesurfer"
+    ],
+    [
+        "use_FLAIR",
+        false
+    ],
+    [
+        "use_T2",
+        false
+    ],
+    [
+        "needed_outputs",
+        [
+            "subject_id",
+            "subjects_dir"
+        ]
+    ]
+]

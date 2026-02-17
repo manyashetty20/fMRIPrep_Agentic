@@ -1,0 +1,35 @@
+[
+    [
+        "clip",
+        true
+    ],
+    [
+        "in_file",
+        [
+            "/home/fmriprep/.cache/templateflow/tpl-OASIS30ANTs/tpl-OASIS30ANTs_res-01_T1w.nii.gz",
+            "9717000f4bfb4d09746fe43b5a727850"
+        ]
+    ],
+    [
+        "order",
+        3
+    ],
+    [
+        "smooth",
+        true
+    ],
+    [
+        "zooms",
+        [
+            "4.0000000000",
+            "4.0000000000",
+            "4.0000000000"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]

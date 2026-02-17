@@ -1,0 +1,23 @@
+[
+    [
+        "in_file",
+        [
+            "/out/freesurfer/sub-01/surf/rh.midthickness",
+            "ead37fe0c27572d2053b1cc8769004b8"
+        ]
+    ],
+    [
+        "out_datatype",
+        "gii"
+    ],
+    [
+        "subjects_dir",
+        "/opt/freesurfer/subjects"
+    ],
+    [
+        "needed_outputs",
+        [
+            "converted"
+        ]
+    ]
+]

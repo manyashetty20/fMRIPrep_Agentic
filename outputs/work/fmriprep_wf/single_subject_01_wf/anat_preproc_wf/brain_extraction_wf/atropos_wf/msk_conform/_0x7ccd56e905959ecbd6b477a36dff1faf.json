@@ -1,0 +1,26 @@
+[
+    [
+        "function_str",
+        "def _conform_mask(in_mask, in_reference):\n    \"\"\"Ensures the mask headers make sense and match those of the T1w\"\"\"\n    from pathlib import Path\n    import numpy as np\n    import nibabel as nb\n    from nipype.utils.filemanip import fname_presuffix\n\n    ref = nb.load(in_reference)\n    nii = nb.load(in_mask)\n    hdr = nii.header.copy()\n    hdr.set_data_dtype(\"int16\")\n    hdr.set_slope_inter(1, 0)\n\n    qform, qcode = ref.header.get_qform(coded=True)\n    if qcode is not None:\n        hdr.set_qform(qform, int(qcode))\n\n    sform, scode = ref.header.get_sform(coded=True)\n    if scode is not None:\n        hdr.set_sform(sform, int(scode))\n\n    if \"_maths\" in in_mask:  # Cut the name at first _maths occurrence\n        ext = \"\".join(Path(in_mask).suffixes)\n        basename = Path(in_mask).name\n        in_mask = basename.split(\"_maths\")[0] + ext\n\n    out_file = fname_presuffix(in_mask, suffix=\"_mask\", newpath=str(Path()))\n    nii.__class__(\n        np.asanyarray(nii.dataobj).astype(\"int16\"), ref.affine, hdr\n    ).to_filename(out_file)\n    return out_file\n"
+    ],
+    [
+        "in_mask",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/23_depad_mask/09_relabel_wm_maths_class-03_maths_maths_maths_maths_maths_maths_maths_maths_maths.nii.gz",
+            "d7e993ea7bac7558a72fac8b45283cce"
+        ]
+    ],
+    [
+        "in_reference",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz",
+            "b722cf4c22dade7ef9aa7b1adec061c8"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out"
+        ]
+    ]
+]

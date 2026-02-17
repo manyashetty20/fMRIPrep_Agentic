@@ -1,0 +1,25 @@
+[
+    [
+        "directive",
+        "autorecon2-volonly"
+    ],
+    [
+        "openmp",
+        8
+    ],
+    [
+        "subject_id",
+        "sub-01"
+    ],
+    [
+        "subjects_dir",
+        "/out/freesurfer"
+    ],
+    [
+        "needed_outputs",
+        [
+            "subject_id",
+            "subjects_dir"
+        ]
+    ]
+]

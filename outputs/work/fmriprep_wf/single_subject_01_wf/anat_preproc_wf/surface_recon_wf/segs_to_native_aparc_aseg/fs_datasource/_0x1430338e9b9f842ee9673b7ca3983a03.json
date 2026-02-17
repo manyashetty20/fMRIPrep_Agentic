@@ -1,0 +1,20 @@
+[
+    [
+        "hemi",
+        "both"
+    ],
+    [
+        "subject_id",
+        "sub-01"
+    ],
+    [
+        "subjects_dir",
+        "/out/freesurfer"
+    ],
+    [
+        "needed_outputs",
+        [
+            "aparc_aseg"
+        ]
+    ]
+]

@@ -1,0 +1,31 @@
+[
+    [
+        "in_file",
+        [
+            "/data/sub-01/anat/sub-01_T1w.nii.gz",
+            "297fb95798707ef17b8fc5e32e1bd9b1"
+        ]
+    ],
+    [
+        "target_shape",
+        [
+            64,
+            64,
+            64
+        ]
+    ],
+    [
+        "target_zooms",
+        [
+            "1.0000000000",
+            "1.0000000000",
+            "1.0000000000"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]

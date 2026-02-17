@@ -1,0 +1,2 @@
+ImageMath 3 08_mult_gm_maths.nii.gz addtozero /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/08_mult_gm/08_mult_gm.nii.gz /out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/10_me_csf/sub-01_T1w_ras_valid_corrected_labeled_maths_class-01_maths.nii.gz
+

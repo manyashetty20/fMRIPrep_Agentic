@@ -1,0 +1,33 @@
+[
+    [
+        "copy_header",
+        true
+    ],
+    [
+        "dimension",
+        3
+    ],
+    [
+        "op1",
+        [
+            [
+                "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz",
+                "b722cf4c22dade7ef9aa7b1adec061c8"
+            ]
+        ]
+    ],
+    [
+        "op2",
+        "0.01 0.999 256"
+    ],
+    [
+        "operation",
+        "TruncateImageIntensity"
+    ],
+    [
+        "needed_outputs",
+        [
+            "output_image"
+        ]
+    ]
+]

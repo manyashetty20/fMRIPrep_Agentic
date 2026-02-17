@@ -1,0 +1,16 @@
+[
+    [
+        "in_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/surface_recon_wf/gifti_surface_wf/fix_surfs/mapflow/_fix_surfs4/lh.inflated_converted.gii",
+            "e66e3d0192fa9e3c28f1030842301006"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "hemi",
+            "suffix"
+        ]
+    ]
+]

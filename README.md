@@ -16,48 +16,57 @@ It eliminates the need for:
 ```text
 Agentic_fMRIPrep/
 ├── agents/
-│   ├── config_agent.py       # Pillar 1: Setup & RAG Logic
-│   ├── vision_agent.py       # Pillar 2: Visual QC (ViT/ResNet)
-│   ├── diagnostic_agent.py   # Pillar 3: Log Analysis
-│   └── recovery_agent.py     # Pillar 4: Orchestration (LangGraph)
+│   ├── orchestrator.py       # LangGraph Orchestration (State & Recovery)
+│   ├── bids_agent.py         # Metadata Validation & Self-Healing
+│   ├── resource_agent.py     # Hardware Monitoring (CPU/RAM/Docker)
+│   ├── pipeline_agent.py     # Command Generation (fMRIPrep/FreeSurfer)
+│   └── vision_agent.py       # Quality Assurance (Visual Audit)
 ├── data/
-│   ├── bids_input/           # Raw BIDS-compliant fMRI data
+│   ├── bids_input/           # BIDS data (Toy Data $64^3$ crops)
 │   └── docs/                 # Manuals for RAG (fMRIPrep & BIDS)
-├── database/                 # Persistent Vector DB (Chroma)
-├── scripts/                  # Generated fMRIPrep shell scripts
-└── main.py                   # System Orchestrator
+├── outputs/                  # Final Preprocessed NIfTI and HTML reports
+├── license.txt               # Required: FreeSurfer License (See Setup)
+└── main.py                   # System Entry Point
+
 ```
 
 ---
 
 # ⚙️ Setup Instructions
 
-## 1️⃣ Environment Configuration
+This guide will help you configure your environment for the **Agentic fMRIPrep Pipeline**. Follow these steps in order to ensure all dependencies and credentials are properly established.
 
-Create a virtual environment and install dependencies.
+---
 
-This setup uses:
+### 1️⃣ FreeSurfer License (Required)
+This pipeline requires a valid FreeSurfer license to run anatomical segmentation and surface reconstruction.
 
-- **Groq** → reasoning (Llama 3)  
-- **HuggingFace** → local embeddings  
-- **ChromaDB** → vector database  
+1. **Obtain a license:** Register for a free license at the [Official FreeSurfer Registration Page](https://surfer.nmr.mgh.harvard.edu/registration.html).
+2. **Download:** You will receive the license information via email.
+3. **Save:** Create a file named `license.txt` in the **root directory** of this project and paste your license details inside.
+4. **Security:** This file is automatically excluded via `.gitignore` to prevent accidental public sharing of your credentials.
 
-(OpenAI-free setup)
+---
+
+### 2️⃣ Environment Configuration
+The system uses **Groq** for high-speed LLM reasoning and **LangGraph** for multi-agent orchestration. It is recommended to use a Python virtual environment.
 
 ```bash
+# Create a virtual environment
 python3 -m venv venv
+
+# Activate the environment
 source venv/bin/activate
 
+# Install core dependencies
 pip install \
-langchain-groq \
-langchain-classic \
-langchain-community \
-sentence-transformers \
-chromadb \
-pypdf \
-unstructured
+  langchain-groq \
+  langgraph \
+  sentence-transformers \
+  nibabel \
+  docker \
+  chromadb
 ```
-
 ---
 
 ## 2️⃣ API Key Configuration

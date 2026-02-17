@@ -1,0 +1,15 @@
+[
+    [
+        "in_file",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_template_wf/t1w_conform/mapflow/_t1w_conform0/sub-01_T1w_ras.nii.gz",
+            "5d145e9c7785817396eb3d0bf2e8f4f6"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]

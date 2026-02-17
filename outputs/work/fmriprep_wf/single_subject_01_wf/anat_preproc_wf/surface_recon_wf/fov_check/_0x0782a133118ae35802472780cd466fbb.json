@@ -1,0 +1,19 @@
+[
+    [
+        "function_str",
+        "def _check_cw256(in_files):\n    import numpy as np\n    from nibabel.funcs import concat_images\n    if isinstance(in_files, str):\n        in_files = [in_files]\n    summary_img = concat_images(in_files)\n    fov = np.array(summary_img.shape[:3]) * summary_img.header.get_zooms()[:3]\n    if np.any(fov > 256):\n        return ['-noskullstrip', '-cw256']\n    return '-noskullstrip'\n"
+    ],
+    [
+        "in_files",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/anat_validate/sub-01_T1w_ras_valid.nii.gz",
+            "b722cf4c22dade7ef9aa7b1adec061c8"
+        ]
+    ],
+    [
+        "needed_outputs",
+        [
+            "out"
+        ]
+    ]
+]

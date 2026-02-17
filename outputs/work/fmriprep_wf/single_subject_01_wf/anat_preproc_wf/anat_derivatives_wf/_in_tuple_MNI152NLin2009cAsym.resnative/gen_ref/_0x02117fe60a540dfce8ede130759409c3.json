@@ -1,0 +1,34 @@
+[
+    [
+        "fixed_image",
+        [
+            "/home/fmriprep/.cache/templateflow/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz",
+            "4d55181c71706cbe32d4f5855a56ec16"
+        ]
+    ],
+    [
+        "fov_mask",
+        null
+    ],
+    [
+        "keep_native",
+        true
+    ],
+    [
+        "moving_image",
+        [
+            "/out/work/fmriprep_wf/single_subject_01_wf/anat_preproc_wf/brain_extraction_wf/atropos_wf/copy_xform/sub-01_T1w_ras_valid_corrected_xform.nii.gz",
+            "237572e7ce0a2c13a894e802ff268551"
+        ]
+    ],
+    [
+        "xform_code",
+        null
+    ],
+    [
+        "needed_outputs",
+        [
+            "out_file"
+        ]
+    ]
+]
