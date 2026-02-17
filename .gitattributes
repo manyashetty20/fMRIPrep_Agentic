@@ -1,2 +1,7 @@
-* info-linguist-detectable=false
-*.py info-linguist-detectable=true
+# Ignore all outputs and data from language statistics
+outputs/** linguist-detectable=false
+data/** linguist-detectable=false
+*.png linguist-detectable=false
+
+# Force Python to be the primary detected language
+*.py linguist-detectable=true
