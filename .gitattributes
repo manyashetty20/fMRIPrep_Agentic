@@ -1,0 +1,2 @@
+* info-linguist-detectable=false
+*.py info-linguist-detectable=true
