@@ -1,4 +1,10 @@
-license.txt
+venv/
+data/
+outputs/
+logs/
+__pycache__/
+*.pyc
+.DS_Storelicense.txt
 database/
 __pycache__/
 .DS_Store

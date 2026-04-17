@@ -1,0 +1,47 @@
+# ============================================================
+# Agentic fMRIPrep – Central Configuration
+# All paths are relative to the project root unless absolute.
+# ============================================================
+
+# --- Paths ---
+paths:
+  bids_dir: "./data/bids_input"
+  output_dir: "./outputs"
+  work_dir: "./outputs/work"
+  license_file: "./license.txt"
+  docs_dir: "./data/docs"
+  vector_db_dir: "./database/vector_store"
+
+# --- Subject / Session ---
+subject:
+  participant_id: "sub-01"       # e.g. "sub-01" or "all"
+  session_id: null               # null = no session filter
+
+# --- fMRIPrep Pipeline Options ---
+pipeline:
+  anat_only: true                # Run anatomical workflow only (faster / toy mode)
+  sloppy: true                   # Low-precision math (good for testing)
+  skip_bids_validation: true
+  low_mem: true
+  mem_mb: 4000
+  nprocs: 1
+  docker_image: "nipreps/fmriprep:latest"
+  
+# --- LLM / Embedding Settings ---
+llm:
+  provider: "groq"               # "groq" | "openai" | "anthropic"
+  model_name: "llama-3.3-70b-versatile"
+  temperature: 0
+
+embeddings:
+  model_name: "all-MiniLM-L6-v2"
+
+# --- Agent Behaviour ---
+agents:
+  max_recovery_attempts: 3       # Give up after this many retries
+  vision_enabled: true           # Run Vision Agent QA after successful run
+
+# --- Logging ---
+logging:
+  level: "INFO"                  # DEBUG | INFO | WARNING | ERROR
+  log_file: "./logs/agentic_run.log"   # null = stdout only

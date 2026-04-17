@@ -1,19 +1,134 @@
+"""
+agents/recovery_agent.py
+=========================
+Recovery Agent – parses a diagnosis report and applies surgical fixes
+to the fMRIPrep Docker command.
+
+No hardcoded paths or values – everything is derived from the diagnosis
+text and the central Config.
+"""
+
+from __future__ import annotations
+
+import logging
 import re
 
-class RecoveryAgent:
-    def apply_fix(self, original_command, diagnosis_report):
-        potential_fixes = ["--low-mem", "--mem_mb", "--nprocs"]
-        applied_fixes = [fix for fix in potential_fixes if fix in diagnosis_report]
-        
-        if not applied_fixes:
-            return original_command
+from config_loader import Config
 
-        # Clean the command: remove trailing backticks or whitespace
-        clean_cmd = original_command.strip().replace("```bash", "").replace("```", "").strip()
-        
-        for fix in applied_fixes:
-            if fix not in clean_cmd:
-                clean_cmd += f" {fix}"
-        
-        # Wrap it back in a clean block
-        return f"```bash\n{clean_cmd}\n```"
+logger = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------------- #
+#  Fix rules
+#  Each entry maps a regex on the DIAGNOSIS TEXT → a function that
+#  modifies the command list in-place.
+# --------------------------------------------------------------------------- #
+
+
+def _ensure_flag(parts: list[str], flag: str) -> None:
+    """Add `flag` to parts if it isn't already present."""
+    if not any(p.startswith(flag.split()[0]) for p in parts):
+        parts.extend(flag.split())
+
+
+def _replace_flag(parts: list[str], flag: str, value: str) -> None:
+    """Replace or add a flag=value pair."""
+    stem = flag.rstrip("=")
+    parts[:] = [p for p in parts if not p.startswith(stem)]
+    parts.append(f"{flag}{value}")
+
+
+_FIX_RULES: list[tuple[str, object]] = [
+    # Memory / OOM
+    (r"(?i)(out.of.memory|oom|exit code 137|LOW-MEM|--low-mem)",
+     lambda parts, cfg: (
+         _ensure_flag(parts, "--low-mem"),
+         _replace_flag(parts, "--mem_mb ", str(cfg.mem_mb)),
+         _replace_flag(parts, "--nprocs ", "1"),
+     )),
+
+    # Missing TR / BIDS metadata → skip validation so fMRIPrep proceeds
+    (r"(?i)(RepetitionTime|BIDS_FIX|missing.*TR)",
+     lambda parts, cfg: _ensure_flag(parts, "--skip-bids-validation")),
+
+    # Fieldmap errors
+    (r"(?i)(fieldmap|SDC|--use-syn-sdc|susceptibility)",
+     lambda parts, cfg: (
+         _ensure_flag(parts, "--use-syn-sdc"),
+         _ensure_flag(parts, "--ignore fieldmaps"),
+     )),
+
+    # FreeSurfer issues
+    (r"(?i)(freesurfer|recon-all|fs-no-reconall)",
+     lambda parts, cfg: _ensure_flag(parts, "--fs-no-reconall")),
+
+    # Filesystem naming conflict → skip problematic FreeSurfer sub-stages
+    (r"(?i)(naming conflict|FileExists|nogcareg|nocanorm)",
+     lambda parts, cfg: (
+         _ensure_flag(parts, "--fs-no-reconall"),
+     )),
+]
+
+
+class RecoveryAgent:
+    """
+    Applies targeted fixes to a Docker command based on a diagnosis report.
+
+    The agent parses the diagnosis text, matches known failure patterns,
+    and modifies the command accordingly.  Multiple fixes can be applied
+    in a single pass if the report mentions multiple issues.
+    """
+
+    def __init__(self, cfg: Config) -> None:
+        self.cfg = cfg
+
+    # ---------------------------------------------------------------------- #
+    #  Public API
+    # ---------------------------------------------------------------------- #
+
+    def apply_fix(self, command: str, diagnosis_report: str) -> str:
+        """
+        Return a modified command with fixes applied.
+
+        Parameters
+        ----------
+        command : str
+            The Docker command that failed (may contain shell line-continuations).
+        diagnosis_report : str
+            Plain-text output from DiagnosticAgent.diagnose_crash().
+
+        Returns
+        -------
+        str
+            Updated command string, ready to pass to subprocess.
+        """
+        # Normalise the command: strip markdown fences and line continuations
+        clean = self._normalise(command)
+        parts = clean.split()
+
+        applied: list[str] = []
+        for pattern, fix_fn in _FIX_RULES:
+            if re.search(pattern, diagnosis_report):
+                fix_fn(parts, self.cfg)
+                applied.append(pattern)
+
+        if not applied:
+            logger.warning(
+                "RecoveryAgent: no fix rule matched the diagnosis. "
+                "Returning original command."
+            )
+            return clean
+
+        logger.info("RecoveryAgent applied %d fix rule(s): %s", len(applied), applied)
+        return " ".join(parts)
+
+    # ---------------------------------------------------------------------- #
+    #  Internal helpers
+    # ---------------------------------------------------------------------- #
+
+    @staticmethod
+    def _normalise(cmd: str) -> str:
+        """Strip markdown code fences and merge shell line-continuations."""
+        cmd = cmd.replace("```bash", "").replace("```sh", "").replace("```", "")
+        # Collapse backslash-newline continuations into a single line
+        cmd = re.sub(r"\\\s*\n\s*", " ", cmd)
+        return cmd.strip()
