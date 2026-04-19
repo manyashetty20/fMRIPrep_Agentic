@@ -18,31 +18,35 @@ logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
 #  Heuristic rules for common fMRIPrep failures
-#  Each entry: (regex_pattern, human_label, suggested_fixes)
+#  Each entry: (priority, regex_pattern, human_label, suggested_fixes)
 # --------------------------------------------------------------------------- #
-_HEURISTICS: list[tuple[str, str, list[str]]] = [
-    (r"(?i)(out of memory|oom|exit code 137|killed)",
+_HEURISTICS: list[tuple[int, str, str, list[str]]] = [
+    (100, r"(?i)(fallback-total-readout-time|Missing readout time information|Unknown total-readout time specification|Missing readout timing information)",
+     "Missing readout timing metadata",
+     ["--fallback-total-readout-time", "add TotalReadoutTime or EffectiveEchoSpacing metadata"]),
+
+    (95, r"(?i)(out of memory|oom|exit code 137|killed)",
      "OUT-OF-MEMORY crash",
      ["--low-mem", "--mem_mb", "--nprocs 1"]),
 
-    (r"(?i)(repetition.?time|RepetitionTime|missing.*TR|TR.*missing)",
+    (90, r"(?i)(repetition.?time|RepetitionTime|missing.*TR|TR.*missing)",
      "Missing RepetitionTime in BIDS metadata",
      ["BIDS_FIX: inject RepetitionTime into task JSON sidecar"]),
 
-    (r"(?i)(fieldmap|field.?map|fmap|SDC|susceptibility)",
+    (80, r"(?i)(fieldmap|field.?map|fmap|SDC|susceptibility)",
      "Fieldmap / distortion-correction error",
      ["--use-syn-sdc", "--ignore fieldmaps"]),
 
-    (r"(?i)(freesurfer|recon-all|no such file.*license|license.*not found)",
+    (70, r"(?i)(no such file.*license|license.*not found|license file .* not found|freesurfer license)",
      "FreeSurfer license or binary missing",
      ["--fs-no-reconall", "verify license.txt path"]),
 
-    (r"(?i)(naming conflict|already exists|FileExists|file.*exist)",
+    (60, r"(?i)(naming conflict|already exists|FileExists|file.*exist)",
      "Output filesystem naming conflict",
      ["--output-spaces MNI152NLin2009cAsym",
       "FreeSurfer flags: -nogcareg -nocanorm"]),
 
-    (r"(?i)(docker|permission denied|cannot connect|daemon)",
+    (50, r"(?i)(docker:.*cannot connect|docker:.*permission denied|cannot connect to the docker daemon|docker daemon)",
      "Docker daemon / permissions error",
      ["check Docker is running", "run with sudo if required"]),
 ]
@@ -124,12 +128,15 @@ class DiagnosticAgent:
         return result.content if hasattr(result, "content") else str(result)
 
     def _heuristic_diagnose(self, error_log: str) -> str:
-        matches: list[tuple[str, list[str]]] = []
-        for pattern, label, fixes in _HEURISTICS:
+        best_match: tuple[int, str, list[str], str] | None = None
+        for priority, pattern, label, fixes in _HEURISTICS:
             if re.search(pattern, error_log):
-                matches.append((label, fixes))
+                match_obj = re.search(pattern, error_log)
+                evidence = match_obj.group(0).strip() if match_obj else "(pattern matched)"
+                if best_match is None or priority > best_match[0]:
+                    best_match = (priority, label, fixes, evidence)
 
-        if not matches:
+        if best_match is None:
             return (
                 "ROOT CAUSE: Unknown – no recognised pattern found in log.\n"
                 "EVIDENCE: (see full log)\n"
@@ -139,14 +146,16 @@ class DiagnosticAgent:
                 "SEVERITY: UNKNOWN"
             )
 
-        lines = []
-        for label, fixes in matches:
-            lines.append(f"ROOT CAUSE: {label}")
-            lines.append("RECOMMENDED FIXES:")
-            for i, fix in enumerate(fixes, 1):
-                lines.append(f"  {i}. {fix}")
-            lines.append("")
-        return "\n".join(lines).strip()
+        _, label, fixes, evidence = best_match
+        lines = [
+            f"ROOT CAUSE: {label}",
+            f"EVIDENCE: {evidence}",
+            "RECOMMENDED FIXES:",
+        ]
+        for i, fix in enumerate(fixes, 1):
+            lines.append(f"  {i}. {fix}")
+        lines.append("SEVERITY: HIGH")
+        return "\n".join(lines)
 
     def _get_llm(self):
         """Lazily build and cache the LLM instance."""

@@ -40,6 +40,7 @@ _DEFAULTS: dict[str, Any] = {
     "pipeline.mem_mb":                 4000,
     "pipeline.nprocs":                 1,
     "pipeline.docker_image":           "poldracklab/fmriprep:latest",
+    "pipeline.fallback_total_readout_time": 0.05,
 
     "llm.provider":       "groq",
     "llm.model_name":     "llama-3.3-70b-versatile",
@@ -69,6 +70,7 @@ _ENV_MAP: dict[str, str] = {
     "FMRIPREP_DOCKER_IMAGE":   "pipeline.docker_image",
     "FMRIPREP_MEM_MB":         "pipeline.mem_mb",
     "FMRIPREP_NPROCS":         "pipeline.nprocs",
+    "FMRIPREP_FALLBACK_TOTAL_READOUT_TIME": "pipeline.fallback_total_readout_time",
     "GROQ_MODEL":              "llm.model_name",
     "LOG_LEVEL":               "logging.level",
 }
@@ -123,6 +125,8 @@ class Config:
                 # Cast numerics
                 if key in ("pipeline.mem_mb", "pipeline.nprocs", "agents.max_recovery_attempts"):
                     val = int(val)  # type: ignore[assignment]
+                elif key == "pipeline.fallback_total_readout_time":
+                    val = float(val)  # type: ignore[assignment]
                 self._cfg[key] = val
 
         if overrides:
@@ -208,6 +212,10 @@ class Config:
         return int(self._cfg.get("pipeline.nprocs", 1))
 
     @property
+    def fallback_total_readout_time(self) -> float:
+        return float(self._cfg.get("pipeline.fallback_total_readout_time", 0.05))
+
+    @property
     def llm_provider(self) -> str:
         return str(self._cfg.get("llm.provider", "groq"))
 
@@ -239,6 +247,37 @@ class Config:
         """Check whether fieldmap data exists for the configured participant."""
         fmap_path = self.bids_dir / self.participant_id / "fmap"
         return fmap_path.exists() and fmap_path.is_dir() and any(fmap_path.iterdir())
+
+    def func_metadata_files(self) -> list[Path]:
+        func_dir = self.bids_dir / self.participant_id / "func"
+        if not func_dir.exists():
+            return []
+        return sorted(func_dir.glob("*_bold.json"))
+
+    def missing_readout_timing_metadata(self) -> bool:
+        """
+        Return True when BOLD metadata exists but lacks the fields fMRIPrep can use
+        to infer total readout timing.
+        """
+        metadata_files = self.func_metadata_files()
+        if not metadata_files:
+            return False
+
+        for json_file in metadata_files:
+            try:
+                with open(json_file, "r") as f:
+                    metadata = yaml.safe_load(f) or {}
+            except Exception:
+                return True
+
+            has_total_readout = metadata.get("TotalReadoutTime") is not None
+            has_echo_spacing = metadata.get("EffectiveEchoSpacing") is not None
+            has_phase_encoding = metadata.get("PhaseEncodingDirection") is not None
+
+            if not has_total_readout and not (has_echo_spacing and has_phase_encoding):
+                return True
+
+        return False
 
     def validate(self) -> None:
         """Raise descriptive errors for missing required files/dirs."""
@@ -292,3 +331,7 @@ class Config:
     def __repr__(self) -> str:
         lines = [f"  {k}: {v}" for k, v in sorted(self._cfg.items())]
         return "Config(\n" + "\n".join(lines) + "\n)"
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a shallow copy of the resolved flat config."""
+        return dict(self._cfg)

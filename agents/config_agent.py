@@ -87,6 +87,9 @@ class ConfigAgent:
         if not has_fmap:
             parts.append("--use-syn-sdc")
 
+        if not cfg.anat_only and cfg.missing_readout_timing_metadata():
+            parts.append(f"--fallback-total-readout-time {cfg.fallback_total_readout_time}")
+
         parts.append("--fs-no-reconall")
         parts.append("-w /out/work")
 

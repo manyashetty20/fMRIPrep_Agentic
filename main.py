@@ -23,8 +23,10 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import logging
 import sys
+from pathlib import Path
 
 from config_loader import Config
 from agents.orchestrator import build_graph
@@ -71,6 +73,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mem-mb",       type=int, metavar="MB")
     parser.add_argument("--nprocs",       type=int, metavar="N")
     parser.add_argument("--docker-image", metavar="IMAGE")
+    parser.add_argument("--fallback-total-readout-time", type=float, metavar="SECONDS")
 
     # --- Agent behaviour ---
     parser.add_argument(
@@ -113,6 +116,7 @@ def build_overrides(args: argparse.Namespace) -> dict:
         "mem_mb":         "pipeline.mem_mb",
         "nprocs":         "pipeline.nprocs",
         "docker_image":   "pipeline.docker_image",
+        "fallback_total_readout_time": "pipeline.fallback_total_readout_time",
         "max_retries":    "agents.max_recovery_attempts",
         "vision_enabled": "agents.vision_enabled",
         "llm_provider":   "llm.provider",
@@ -164,14 +168,49 @@ def main() -> None:
         "command":       "",
         "log":           "",
         "history":       [],
+        "events":        [],
         "status":        "planning",
         "attempt_count": 0,
+        "recovery_changed": True,
     }
 
     final_state = app.invoke(initial_state)
+    _write_publication_artifacts(cfg, final_state)
 
     # ---------- Final Report ----------
     _print_report(final_state)
+
+
+def _write_publication_artifacts(cfg: Config, final_state: dict) -> None:
+    out_dir = cfg.output_dir / "agentic_results" / cfg.participant_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    run_summary = {
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "participant": cfg.participant_id,
+        "bids_dir": str(cfg.bids_dir),
+        "output_dir": str(cfg.output_dir),
+        "final_status": final_state.get("status"),
+        "attempt_count": final_state.get("attempt_count", 0),
+        "final_command": final_state.get("command", ""),
+        "history": final_state.get("history", []),
+        "events": final_state.get("events", []),
+    }
+
+    config_snapshot = {
+        "resolved_config": cfg.as_dict(),
+        "participant": cfg.participant_id,
+        "bids_dir": str(cfg.bids_dir),
+        "output_dir": str(cfg.output_dir),
+        "metadata_summary": {
+            "has_fieldmap_dir": cfg.has_fieldmap(),
+            "missing_readout_timing_metadata": cfg.missing_readout_timing_metadata(),
+            "func_metadata_files": [str(p) for p in cfg.func_metadata_files()],
+        },
+    }
+
+    (out_dir / "run_summary.json").write_text(json.dumps(run_summary, indent=2, sort_keys=True) + "\n")
+    (out_dir / "config_snapshot.json").write_text(json.dumps(config_snapshot, indent=2, sort_keys=True) + "\n")
 
 
 def _print_report(final_state: dict) -> None:
@@ -201,6 +240,11 @@ def _print_report(final_state: dict) -> None:
         for i, entry in enumerate(history, 1):
             preview = "\n".join(entry.strip().splitlines()[:5])
             print(f"  [{i}] {preview}\n      …")
+
+    qa_report = next((entry for entry in reversed(history) if entry.startswith("VISUAL AUDIT:")), None)
+    if qa_report:
+        print("\n📊  QA RESULTS:")
+        print(qa_report)
 
     print(f"\n{sep}")
     ok = final_state.get("status") in ("success", "completed")

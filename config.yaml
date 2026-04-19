@@ -25,6 +25,7 @@ pipeline:
   low_mem: true
   mem_mb: 4000
   nprocs: 1
+  fallback_total_readout_time: 0.05
   docker_image: "nipreps/fmriprep:latest"
   
 # --- LLM / Embedding Settings ---

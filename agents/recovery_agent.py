@@ -33,8 +33,26 @@ def _ensure_flag(parts: list[str], flag: str) -> None:
 def _replace_flag(parts: list[str], flag: str, value: str) -> None:
     """Replace or add a flag=value pair."""
     stem = flag.rstrip("=")
-    parts[:] = [p for p in parts if not p.startswith(stem)]
-    parts.append(f"{flag}{value}")
+    filtered: list[str] = []
+    skip_next = False
+
+    for i, token in enumerate(parts):
+        if skip_next:
+            skip_next = False
+            continue
+
+        if token == stem:
+            skip_next = True
+            continue
+
+        if token.startswith(stem):
+            continue
+
+        filtered.append(token)
+
+    filtered.extend(stem.split())
+    filtered.append(value)
+    parts[:] = filtered
 
 
 _FIX_RULES: list[tuple[str, object]] = [
@@ -44,6 +62,14 @@ _FIX_RULES: list[tuple[str, object]] = [
          _ensure_flag(parts, "--low-mem"),
          _replace_flag(parts, "--mem_mb ", str(cfg.mem_mb)),
          _replace_flag(parts, "--nprocs ", "1"),
+     )),
+
+    # Missing readout timing metadata
+    (r"(?i)(readout time|readout timing|fallback-total-readout-time|Unknown total-readout time specification)",
+     lambda parts, cfg: _replace_flag(
+         parts,
+         "--fallback-total-readout-time ",
+         str(cfg.fallback_total_readout_time),
      )),
 
     # Missing TR / BIDS metadata → skip validation so fMRIPrep proceeds
@@ -104,10 +130,11 @@ class RecoveryAgent:
         # Normalise the command: strip markdown fences and line continuations
         clean = self._normalise(command)
         parts = clean.split()
+        diagnosis = diagnosis_report or ""
 
         applied: list[str] = []
         for pattern, fix_fn in _FIX_RULES:
-            if re.search(pattern, diagnosis_report):
+            if re.search(pattern, diagnosis):
                 fix_fn(parts, self.cfg)
                 applied.append(pattern)
 
