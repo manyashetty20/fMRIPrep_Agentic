@@ -7,6 +7,7 @@
 paths:
   bids_dir: "./data/bids_input"
   output_dir: "./outputs"
+  evaluation_export_root: "./output"
   work_dir: "./outputs/work"
   license_file: "./license.txt"
   docs_dir: "./data/docs"
@@ -26,6 +27,7 @@ pipeline:
   mem_mb: 4000
   nprocs: 1
   fallback_total_readout_time: 0.05
+  output_space: "MNI152NLin2009cAsym"
   docker_image: "nipreps/fmriprep:latest"
   
 # --- LLM / Embedding Settings ---
@@ -40,7 +42,20 @@ embeddings:
 # --- Agent Behaviour ---
 agents:
   max_recovery_attempts: 3       # Give up after this many retries
-  vision_enabled: true           # Run Vision Agent QA after successful run
+  recovery_enabled: true         # Ablation: set false for "plan + diagnose only" baselines
+  diagnosis_enabled: true        # Ablation: set false to skip diagnostic agent on failures
+  vision_enabled: true           # Run Vision QA after successful run (or after skips)
+
+# --- QA Thresholds ---
+# threshold_preset: use "custom" to rely only on the numeric fields below, or
+# "mriqc_inspired_heuristic" to apply preset gates documented in config_loader (compare with MRIQC IQMs for papers).
+qa:
+  threshold_preset: custom
+  literature_reference_note: ""
+  min_brain_mask_retention_ratio: 0.05   # 5% — brain mask should be at least 5% of preprocessed volume
+  max_brain_mask_retention_ratio: 0.25   # 25% — shouldn't exceed 25% 
+  min_skull_strip_reduction: 0.75        # 75% — at least 75% of preprocessed volume should be non-brain
+  max_skull_strip_reduction: 0.95        # 95% — skull strip shouldn't remove more than 95%
 
 # --- Logging ---
 logging:

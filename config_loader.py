@@ -3,11 +3,13 @@ config_loader.py
 ================
 Single source of truth for all runtime configuration.
 
-Priority (highest → lowest):
-  1. CLI arguments (parsed in main.py, passed here)
-  2. Environment variables  (FMRIPREP_BIDS_DIR, FMRIPREP_PARTICIPANT, etc.)
-  3. config.yaml values
-  4. Built-in defaults
+Merge order (later steps override earlier ones):
+
+  - Built-in defaults
+  - Values from ``config.yaml``
+  - ``qa.threshold_preset`` (non-``custom`` presets replace the four QA numeric thresholds)
+  - Environment variables (``FMRIPREP_*``)
+  - CLI overrides passed to ``Config(..., overrides=…)`` (highest priority)
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ _DEFAULTS: dict[str, Any] = {
     "paths.license_file":     "./license.txt",
     "paths.docs_dir":         "./data/docs",
     "paths.vector_db_dir":    "./database/vector_store",
+    "paths.evaluation_export_root": "./output",
 
     "subject.participant_id": "sub-01",
     "subject.session_id":     None,
@@ -41,6 +44,7 @@ _DEFAULTS: dict[str, Any] = {
     "pipeline.nprocs":                 1,
     "pipeline.docker_image":           "poldracklab/fmriprep:latest",
     "pipeline.fallback_total_readout_time": 0.05,
+    "pipeline.output_space": "MNI152NLin2009cAsym",
 
     "llm.provider":       "groq",
     "llm.model_name":     "llama-3.3-70b-versatile",
@@ -49,10 +53,40 @@ _DEFAULTS: dict[str, Any] = {
     "embeddings.model_name": "all-MiniLM-L6-v2",
 
     "agents.max_recovery_attempts": 3,
+    "agents.recovery_enabled":      True,
+    "agents.diagnosis_enabled":     True,
     "agents.vision_enabled":        True,
+
+    "qa.threshold_preset":                 "custom",
+    "qa.literature_reference_note":        "",
+    "qa.min_brain_mask_retention_ratio": 0.70,
+    "qa.max_brain_mask_retention_ratio": 0.995,
+    "qa.min_skull_strip_reduction":      0.005,
+    "qa.max_skull_strip_reduction":      0.30,
 
     "logging.level":    "INFO",
     "logging.log_file": None,
+}
+
+# When ``qa.threshold_preset`` is set to one of these keys, the four numeric QA gates below
+# are replaced (after YAML merge, before env overrides). Use ``custom`` to keep YAML values only.
+# For formal QA against community standards, correlate automated decisions with MRIQC IQMs
+# (Esteban et al., 2017, Frontiers in Neuroinformatics; MRIQC documentation).
+_QA_PRESET_THRESHOLDS: dict[str, dict[str, float]] = {
+    "mriqc_inspired_heuristic": {
+        "qa.min_brain_mask_retention_ratio": 0.70,
+        "qa.max_brain_mask_retention_ratio": 0.995,
+        "qa.min_skull_strip_reduction": 0.005,
+        "qa.max_skull_strip_reduction": 0.30,
+    },
+}
+
+_QA_PRESET_REFERENCE_NOTES: dict[str, str] = {
+    "custom": "",
+    "mriqc_inspired_heuristic": (
+        "Automated gates are heuristics on anatomical derivatives; for peer review, compare "
+        "against MRIQC anatomical IQMs and expert rating (Esteban et al., 2017)."
+    ),
 }
 
 # --------------------------------------------------------------------------- #
@@ -65,15 +99,24 @@ _ENV_MAP: dict[str, str] = {
     "FMRIPREP_LICENSE":        "paths.license_file",
     "FMRIPREP_DOCS_DIR":       "paths.docs_dir",
     "FMRIPREP_VECTOR_DB_DIR":  "paths.vector_db_dir",
+    "FMRIPREP_EVAL_EXPORT_ROOT": "paths.evaluation_export_root",
     "FMRIPREP_PARTICIPANT":    "subject.participant_id",
     "FMRIPREP_SESSION":        "subject.session_id",
     "FMRIPREP_DOCKER_IMAGE":   "pipeline.docker_image",
     "FMRIPREP_MEM_MB":         "pipeline.mem_mb",
     "FMRIPREP_NPROCS":         "pipeline.nprocs",
     "FMRIPREP_FALLBACK_TOTAL_READOUT_TIME": "pipeline.fallback_total_readout_time",
+    "FMRIPREP_OUTPUT_SPACE": "pipeline.output_space",
+    "FMRIPREP_RECOVERY_ENABLED":   "agents.recovery_enabled",
+    "FMRIPREP_DIAGNOSIS_ENABLED":  "agents.diagnosis_enabled",
+    "FMRIPREP_VISION_ENABLED":     "agents.vision_enabled",
     "GROQ_MODEL":              "llm.model_name",
     "LOG_LEVEL":               "logging.level",
 }
+
+
+def _parse_env_bool(raw: str) -> bool:
+    return raw.strip().lower() in ("1", "true", "yes", "on", "y")
 
 
 def _flatten(d: dict, prefix: str = "") -> dict[str, Any]:
@@ -115,17 +158,34 @@ class Config:
             with open(yaml_path, "r") as f:
                 raw = yaml.safe_load(f) or {}
 
-        # Merge: defaults < yaml < env vars < overrides
+        # Merge: defaults < yaml < qa threshold preset < env vars < overrides
         self._cfg: dict[str, Any] = dict(_DEFAULTS)
         self._cfg.update(_flatten(raw))
+
+        preset = str(self._cfg.get("qa.threshold_preset", "custom"))
+        if preset in _QA_PRESET_THRESHOLDS:
+            self._cfg.update(_QA_PRESET_THRESHOLDS[preset])
 
         for env_var, key in _ENV_MAP.items():
             val = os.environ.get(env_var)
             if val is not None:
+                if key in (
+                    "agents.recovery_enabled",
+                    "agents.diagnosis_enabled",
+                    "agents.vision_enabled",
+                ):
+                    self._cfg[key] = _parse_env_bool(val)
+                    continue
                 # Cast numerics
                 if key in ("pipeline.mem_mb", "pipeline.nprocs", "agents.max_recovery_attempts"):
                     val = int(val)  # type: ignore[assignment]
-                elif key == "pipeline.fallback_total_readout_time":
+                elif key in (
+                    "pipeline.fallback_total_readout_time",
+                    "qa.min_brain_mask_retention_ratio",
+                    "qa.max_brain_mask_retention_ratio",
+                    "qa.min_skull_strip_reduction",
+                    "qa.max_skull_strip_reduction",
+                ):
                     val = float(val)  # type: ignore[assignment]
                 self._cfg[key] = val
 
@@ -175,6 +235,10 @@ class Config:
         return self._abs("paths.vector_db_dir")
 
     @property
+    def evaluation_export_root(self) -> Path:
+        return self._abs("paths.evaluation_export_root")
+
+    @property
     def participant_id(self) -> str:
         return str(self._cfg.get("subject.participant_id", "sub-01"))
 
@@ -216,6 +280,10 @@ class Config:
         return float(self._cfg.get("pipeline.fallback_total_readout_time", 0.05))
 
     @property
+    def output_space(self) -> str:
+        return str(self._cfg.get("pipeline.output_space", "MNI152NLin2009cAsym"))
+
+    @property
     def llm_provider(self) -> str:
         return str(self._cfg.get("llm.provider", "groq"))
 
@@ -236,8 +304,44 @@ class Config:
         return int(self._cfg.get("agents.max_recovery_attempts", 3))
 
     @property
+    def recovery_enabled(self) -> bool:
+        return bool(self._cfg.get("agents.recovery_enabled", True))
+
+    @property
+    def diagnosis_enabled(self) -> bool:
+        return bool(self._cfg.get("agents.diagnosis_enabled", True))
+
+    @property
     def vision_enabled(self) -> bool:
         return bool(self._cfg.get("agents.vision_enabled", True))
+
+    @property
+    def qa_threshold_preset(self) -> str:
+        return str(self._cfg.get("qa.threshold_preset", "custom"))
+
+    @property
+    def qa_literature_reference_note(self) -> str:
+        note = self._cfg.get("qa.literature_reference_note")
+        if note is not None and str(note).strip():
+            return str(note).strip()
+        preset = self.qa_threshold_preset
+        return _QA_PRESET_REFERENCE_NOTES.get(preset, "")
+
+    @property
+    def min_brain_mask_retention_ratio(self) -> float:
+        return float(self._cfg.get("qa.min_brain_mask_retention_ratio", 0.70))
+
+    @property
+    def max_brain_mask_retention_ratio(self) -> float:
+        return float(self._cfg.get("qa.max_brain_mask_retention_ratio", 0.995))
+
+    @property
+    def min_skull_strip_reduction(self) -> float:
+        return float(self._cfg.get("qa.min_skull_strip_reduction", 0.005))
+
+    @property
+    def max_skull_strip_reduction(self) -> float:
+        return float(self._cfg.get("qa.max_skull_strip_reduction", 0.30))
 
     # ---------------------------------------------------------------------- #
     #  Helpers
