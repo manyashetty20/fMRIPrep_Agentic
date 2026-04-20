@@ -31,27 +31,26 @@ def _ensure_flag(parts: list[str], flag: str) -> None:
 
 
 def _replace_flag(parts: list[str], flag: str, value: str) -> None:
-    """Replace or add a flag=value pair."""
-    stem = flag.rstrip("=")
+    """Replace or add a --flag value pair and deduplicate existing occurrences."""
+    stem = flag.strip().split()[0].rstrip("=")
     filtered: list[str] = []
-    skip_next = False
+    i = 0
 
-    for i, token in enumerate(parts):
-        if skip_next:
-            skip_next = False
-            continue
+    while i < len(parts):
+        token = parts[i]
 
+        # Match both split form (--flag VALUE) and equals form (--flag=VALUE).
         if token == stem:
-            skip_next = True
+            i += 2
             continue
-
-        if token.startswith(stem):
+        if token.startswith(f"{stem}="):
+            i += 1
             continue
 
         filtered.append(token)
+        i += 1
 
-    filtered.extend(stem.split())
-    filtered.append(value)
+    filtered.extend([stem, value])
     parts[:] = filtered
 
 

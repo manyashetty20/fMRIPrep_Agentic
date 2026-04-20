@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 #  Each entry: (priority, regex_pattern, human_label, suggested_fixes)
 # --------------------------------------------------------------------------- #
 _HEURISTICS: list[tuple[int, str, str, list[str]]] = [
-    (100, r"(?i)(fallback-total-readout-time|Missing readout time information|Unknown total-readout time specification|Missing readout timing information)",
+    (100, r"(?i)(Missing readout time information|Unknown total-readout time specification|missing.*TotalReadoutTime)",
      "Missing readout timing metadata",
      ["--fallback-total-readout-time", "add TotalReadoutTime or EffectiveEchoSpacing metadata"]),
 
@@ -43,7 +43,7 @@ _HEURISTICS: list[tuple[int, str, str, list[str]]] = [
 
     (60, r"(?i)(naming conflict|already exists|FileExists|file.*exist)",
      "Output filesystem naming conflict",
-     ["--output-spaces MNI152NLin2009cAsym",
+     ["verify --output-spaces matches your configured output space",
       "FreeSurfer flags: -nogcareg -nocanorm"]),
 
     (50, r"(?i)(docker:.*cannot connect|docker:.*permission denied|cannot connect to the docker daemon|docker daemon)",

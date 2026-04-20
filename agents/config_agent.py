@@ -80,9 +80,8 @@ class ConfigAgent:
 
         parts.append(f"--mem_mb {cfg.mem_mb}")
         parts.append(f"--nprocs {cfg.nprocs}")
-
-        if cfg.session_id:
-            parts.append(f"--session-id {cfg.session_id}")
+        if cfg.output_space:
+            parts.append(f"--output-spaces {cfg.output_space}")
 
         if not has_fmap:
             parts.append("--use-syn-sdc")
