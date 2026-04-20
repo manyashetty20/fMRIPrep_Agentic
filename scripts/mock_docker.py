@@ -36,6 +36,18 @@ def _flag_value(args: list[str], flag: str, default: str | None = None) -> str |
 def main() -> int:
     args = sys.argv[1:]
 
+    force_oom = os.environ.get("FMRIPREP_MOCK_FORCE_EXIT137", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    if force_oom:
+        sys.stderr.write(
+            "Mock docker: FMRIPREP_MOCK_FORCE_EXIT137 enabled — simulating OOM exit 137\n"
+        )
+        return 137
+
     participant_label = _flag_value(args, "--participant-label", "01") or "01"
     participant = participant_label if participant_label.startswith("sub-") else f"sub-{participant_label}"
     nprocs = int(_flag_value(args, "--nprocs", "1") or "1")
