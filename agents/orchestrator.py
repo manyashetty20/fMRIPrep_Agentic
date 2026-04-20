@@ -84,11 +84,66 @@ def build_graph(cfg: Config) -> object:
         # Prefer the current output layout if nothing exists yet.
         return candidates[0]
 
+    def _resolve_input_t1w() -> Path:
+        """
+        Resolve the subject T1w input, supporting both flat and session-based BIDS layouts.
+
+        Priority:
+          1) <bids>/sub-XX/anat/sub-XX_T1w.nii.gz
+          2) <bids>/sub-XX/ses-YY/anat/sub-XX_ses-YY*_T1w.nii.gz (when session is configured)
+          3) For wildcard session matches, prefer non-retest sessions first
+             (e.g., ses-test before ses-retest), then alphabetical
+          4) First sorted wildcard match under <bids>/sub-XX/ses-*/anat/sub-XX*_T1w.nii.gz
+        """
+        flat = cfg.bids_dir / cfg.participant_id / "anat" / f"{cfg.participant_id}_T1w.nii.gz"
+        if flat.exists():
+            return flat
+
+        if cfg.session_id:
+            ses = cfg.session_id if str(cfg.session_id).startswith("ses-") else f"ses-{cfg.session_id}"
+            ses_anat = cfg.bids_dir / cfg.participant_id / ses / "anat"
+            session_matches = sorted(ses_anat.glob(f"{cfg.participant_id}_{ses}*_T1w.nii.gz"))
+            if session_matches:
+                return session_matches[0]
+
+        wildcard_matches = sorted(
+            (cfg.bids_dir / cfg.participant_id).glob(f"ses-*/anat/{cfg.participant_id}*_T1w.nii.gz")
+        )
+        if wildcard_matches:
+            def _session_sort_key(path: Path) -> tuple[int, str]:
+                ses = next((part for part in path.parts if part.startswith("ses-")), "")
+                is_retest = "retest" in ses.lower()
+                return (1 if is_retest else 0, str(path))
+
+            wildcard_matches = sorted(wildcard_matches, key=_session_sort_key)
+
+        if wildcard_matches:
+            return wildcard_matches[0]
+
+        # Fall back to the canonical flat path for downstream warnings/messages.
+        return flat
+
+    def _resolve_subject_report_path() -> Path:
+        """
+        Resolve the subject HTML report path across common fMRIPrep output layouts.
+        """
+        candidates = [
+            cfg.output_dir / f"{cfg.participant_id}.html",
+            cfg.output_dir / "fmriprep" / f"{cfg.participant_id}.html",
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return candidates[0]
+
     def _persist_qa_results(report: str, metrics: dict) -> None:
         qa_dir = cfg.output_dir / "agentic_results" / cfg.participant_id
         qa_dir.mkdir(parents=True, exist_ok=True)
         (qa_dir / "qa_report.txt").write_text(report + "\n")
         (qa_dir / "qa_metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True) + "\n")
+        qa_decision = metrics.get("qa_decision")
+        if isinstance(qa_decision, dict):
+            (qa_dir / "qa_decision.json").write_text(json.dumps(qa_decision, indent=2, sort_keys=True) + "\n")
 
     def _tokenize_command(cmd: str) -> list[str]:
         """Compare commands by shell tokens, ignoring formatting-only differences."""
@@ -180,6 +235,36 @@ def build_graph(cfg: Config) -> object:
                 }],
             }
 
+    def success_finalize_node(state: AgentState) -> dict:
+        """Successful fMRIPrep run without voxel/HTML QA (ablation: vision disabled)."""
+        logger.info("--- [GRAPH] Success finalize (Vision QA disabled) ---")
+        report = "VISUAL AUDIT SKIPPED: agents.vision_enabled is false in configuration."
+        metrics: dict[str, object] = {
+            "status": "skipped",
+            "reason": "vision_disabled",
+            "qa_summary": "SKIPPED",
+            "qa_decision": {
+                "summary": "SKIPPED",
+                "status": "skipped",
+                "checks": [],
+            },
+        }
+        qa_dir = cfg.output_dir / "agentic_results" / cfg.participant_id
+        qa_dir.mkdir(parents=True, exist_ok=True)
+        (qa_dir / "qa_report.txt").write_text(report + "\n")
+        (qa_dir / "qa_metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True) + "\n")
+        return {
+            "status": "completed",
+            "history": [report],
+            "events": [{
+                "type": "qa",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "status": "skipped",
+                "metrics": metrics,
+                "report": report,
+            }],
+        }
+
     def diagnostic_node(state: AgentState) -> dict:
         logger.info("--- [GRAPH] Diagnostic Phase ---")
         report = diagnostic_agent.diagnose_crash(state["log"])
@@ -235,6 +320,13 @@ def build_graph(cfg: Config) -> object:
             return "vision_agent"
         return "executor"
 
+    def route_after_diagnosis(state: AgentState) -> str:
+        """Recovery agent optional (ablation): diagnosis may go straight to QA."""
+        if not cfg.recovery_enabled:
+            logger.info("Recovery disabled by config – skipping engineer node.")
+            return "vision_agent"
+        return "engineer"
+
     def vision_agent_node(state: AgentState) -> dict:
         logger.info("--- [GRAPH] Vision Quality Phase ---")
 
@@ -243,11 +335,32 @@ def build_graph(cfg: Config) -> object:
             return {"history": ["Vision QA skipped (disabled in config)."], "status": "completed"}
 
         if state.get("status") != "success":
+            qa_decision = {
+                "summary": "SKIPPED",
+                "status": "skipped",
+                "checks": [
+                    {
+                        "name": "execution_success",
+                        "value": False,
+                        "threshold": True,
+                        "status": "fail",
+                        "reason": "No successful execution was recorded.",
+                    }
+                ],
+            }
             report = (
                 "VISUAL AUDIT SKIPPED:\n"
                 "  No successful execution was recorded, so output quality was not assessed."
             )
-            _persist_qa_results(report, {"status": "skipped", "reason": "execution_not_successful"})
+            _persist_qa_results(
+                report,
+                {
+                    "status": "skipped",
+                    "reason": "execution_not_successful",
+                    "qa_summary": "SKIPPED",
+                    "qa_decision": qa_decision,
+                },
+            )
             logger.info(report)
             return {
                 "history": [report],
@@ -261,11 +374,11 @@ def build_graph(cfg: Config) -> object:
             }
 
         subject_output_dir = _resolve_subject_output_dir()
-        input_img   = cfg.bids_dir / cfg.participant_id / "anat" / f"{cfg.participant_id}_T1w.nii.gz"
+        input_img   = _resolve_input_t1w()
         output_img  = subject_output_dir / "anat" / f"{cfg.participant_id}_desc-preproc_T1w.nii.gz"
-        mni_img     = subject_output_dir / "anat" / f"{cfg.participant_id}_space-MNI152NLin2009cAsym_desc-preproc_T1w.nii.gz"
+        mni_img     = subject_output_dir / "anat" / f"{cfg.participant_id}_space-{cfg.output_space}_desc-preproc_T1w.nii.gz"
         brain_mask  = subject_output_dir / "anat" / f"{cfg.participant_id}_desc-brain_mask.nii.gz"
-        report_html = cfg.output_dir / f"{cfg.participant_id}.html"
+        report_html = _resolve_subject_report_path()
 
         logger.info("Comparing:\n  Input : %s\n  Output: %s", input_img, output_img)
 
@@ -286,6 +399,13 @@ def build_graph(cfg: Config) -> object:
             "output_found": output_img.exists(),
             "mni_found": mni_img.exists(),
             "brain_mask_found": brain_mask.exists(),
+            "qa_output_space": cfg.output_space,
+            "qa_thresholds": {
+                "min_brain_mask_retention_ratio": cfg.min_brain_mask_retention_ratio,
+                "max_brain_mask_retention_ratio": cfg.max_brain_mask_retention_ratio,
+                "min_skull_strip_reduction": cfg.min_skull_strip_reduction,
+                "max_skull_strip_reduction": cfg.max_skull_strip_reduction,
+            },
         }
 
         if not input_img.exists():
@@ -310,13 +430,77 @@ def build_graph(cfg: Config) -> object:
                     mask_nonzero = int(np.count_nonzero(mask))
 
                 kept_nonzero = mask_nonzero if mask_nonzero is not None else proc_nonzero
-                reduction    = 1.0 - kept_nonzero / max(raw_nonzero, 1)
-                retention_ratio = kept_nonzero / max(raw_nonzero, 1)
-                qa_summary = (
-                    "PASS"
-                    if output_img.exists() and mni_img.exists() and report_html.exists() and brain_mask.exists()
-                    else "WARN"
-                )
+                retention_ratio = kept_nonzero / max(proc_nonzero, 1)
+                reduction = 1.0 - kept_nonzero / max(proc_nonzero, 1)
+                qa_checks = [
+                    {
+                        "name": "output_found",
+                        "value": output_img.exists(),
+                        "threshold": True,
+                        "status": "pass" if output_img.exists() else "fail",
+                        "reason": "Expected preprocessed T1w output exists." if output_img.exists() else "Expected preprocessed T1w output is missing.",
+                    },
+                    {
+                        "name": "report_found",
+                        "value": report_html.exists(),
+                        "threshold": True,
+                        "status": "pass" if report_html.exists() else "warn",
+                        "reason": "Subject HTML report exists." if report_html.exists() else "Subject HTML report is missing.",
+                    },
+                    {
+                        "name": "mni_found",
+                        "value": mni_img.exists(),
+                        "threshold": True,
+                        "status": "pass" if mni_img.exists() else "warn",
+                        "reason": "MNI-space anatomical derivative exists." if mni_img.exists() else "No MNI-space anatomical derivative was found.",
+                    },
+                    {
+                        "name": "brain_mask_found",
+                        "value": brain_mask.exists(),
+                        "threshold": True,
+                        "status": "pass" if brain_mask.exists() else "warn",
+                        "reason": "Brain mask derivative exists." if brain_mask.exists() else "Brain mask derivative is missing; voxel metrics fall back to the preprocessed image.",
+                    },
+                    {
+                        "name": "brain_mask_retention_ratio",
+                        "value": retention_ratio,
+                        "threshold": {
+                            "min": cfg.min_brain_mask_retention_ratio,
+                            "max": cfg.max_brain_mask_retention_ratio,
+                        },
+                        "status": (
+                            "pass"
+                            if cfg.min_brain_mask_retention_ratio <= retention_ratio <= cfg.max_brain_mask_retention_ratio
+                            else "warn"
+                        ),
+                        "reason": (
+                            "Mask-vs-preprocessed retention ratio is inside the configured QA band."
+                            if cfg.min_brain_mask_retention_ratio <= retention_ratio <= cfg.max_brain_mask_retention_ratio
+                            else "Mask-vs-preprocessed retention ratio falls outside the configured QA band."
+                        ),
+                    },
+                    {
+                        "name": "skull_strip_reduction",
+                        "value": reduction,
+                        "threshold": {
+                            "min": cfg.min_skull_strip_reduction,
+                            "max": cfg.max_skull_strip_reduction,
+                        },
+                        "status": (
+                            "pass"
+                            if cfg.min_skull_strip_reduction <= reduction <= cfg.max_skull_strip_reduction
+                            else "warn"
+                        ),
+                        "reason": (
+                            "Mask-vs-preprocessed voxel reduction is inside the configured QA band."
+                            if cfg.min_skull_strip_reduction <= reduction <= cfg.max_skull_strip_reduction
+                            else "Mask-vs-preprocessed voxel reduction falls outside the configured QA band."
+                        ),
+                    },
+                ]
+                fail_count = sum(1 for check in qa_checks if check["status"] == "fail")
+                warn_count = sum(1 for check in qa_checks if check["status"] == "warn")
+                qa_summary = "FAIL" if fail_count else ("WARN" if warn_count else "PASS")
                 metrics.update({
                     "raw_nonzero_voxels": raw_nonzero,
                     "preprocessed_nonzero_voxels": proc_nonzero,
@@ -324,6 +508,11 @@ def build_graph(cfg: Config) -> object:
                     "skull_strip_reduction": reduction,
                     "brain_mask_retention_ratio": retention_ratio,
                     "qa_summary": qa_summary,
+                    "qa_decision": {
+                        "summary": qa_summary,
+                        "status": "completed",
+                        "checks": qa_checks,
+                    },
                 })
 
                 report_lines += [
@@ -381,7 +570,12 @@ def build_graph(cfg: Config) -> object:
         attempt = state.get("attempt_count", 0)
 
         if status == "success":
+            return "vision_agent" if cfg.vision_enabled else "success_finalize"
+
+        if not cfg.diagnosis_enabled:
+            logger.info("Diagnosis disabled – routing failed execution to QA/report.")
             return "vision_agent"
+
         if status == "unrecoverable" or not state.get("recovery_changed", True):
             logger.error("Recovery could not produce a new command – stopping retries.")
             return "vision_agent"
@@ -404,6 +598,7 @@ def build_graph(cfg: Config) -> object:
     workflow.add_node("detective",    diagnostic_node)
     workflow.add_node("engineer",     recovery_node)
     workflow.add_node("vision_agent", vision_agent_node)
+    workflow.add_node("success_finalize", success_finalize_node)
 
     workflow.set_entry_point("planner")
     workflow.add_edge("planner", "executor")
@@ -412,12 +607,20 @@ def build_graph(cfg: Config) -> object:
         "executor",
         route_after_execution,
         {
-            "detective":    "detective",
-            "vision_agent": "vision_agent",
+            "detective":         "detective",
+            "vision_agent":      "vision_agent",
+            "success_finalize":  "success_finalize",
         },
     )
 
-    workflow.add_edge("detective", "engineer")
+    workflow.add_conditional_edges(
+        "detective",
+        route_after_diagnosis,
+        {
+            "engineer":     "engineer",
+            "vision_agent": "vision_agent",
+        },
+    )
     workflow.add_conditional_edges(
         "engineer",
         route_after_recovery,
@@ -427,5 +630,6 @@ def build_graph(cfg: Config) -> object:
         },
     )
     workflow.add_edge("vision_agent", END)
+    workflow.add_edge("success_finalize", END)
 
     return workflow.compile()
