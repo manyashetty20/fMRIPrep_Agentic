@@ -286,7 +286,8 @@ def build_graph(cfg: Config) -> object:
         new_cmd = recovery_agent.apply_fix(state["command"], latest_diagnosis)
         logger.info("Recovered command:\n%s", new_cmd)
         changed = _tokenize_command(new_cmd) != _tokenize_command(state["command"])
-        if not changed:
+        bids_data_fix = bool(re.search(r"(?i)(BIDS_FIX|RepetitionTime|missing.*TR)", latest_diagnosis))
+        if not changed and not bids_data_fix:
             logger.warning("Recovery phase produced no command change.")
             return {
                 "command": new_cmd,
@@ -301,6 +302,8 @@ def build_graph(cfg: Config) -> object:
                     "command": new_cmd,
                 }],
             }
+        elif not changed and bids_data_fix:
+            logger.info("Recovery phase wrote BIDS sidecar fix – retrying with same command.")
         return {
             "command": new_cmd,
             "status": "executing",

@@ -33,6 +33,10 @@ _HEURISTICS: list[tuple[int, str, str, list[str]]] = [
      "Missing RepetitionTime in BIDS metadata",
      ["BIDS_FIX: inject RepetitionTime into task JSON sidecar"]),
 
+    (85, r"(?i)(PhaseEncodingDirection.*absent|fieldmap-less.*PhaseEncoding|SyN.*PhaseEncoding)",
+     "SyN SDC requires PhaseEncodingDirection which is absent",
+     ["remove --use-syn-sdc", "--ignore fieldmaps"]),
+
     (80, r"(?i)(fieldmap|field.?map|fmap|SDC|susceptibility)",
      "Fieldmap / distortion-correction error",
      ["--use-syn-sdc", "--ignore fieldmaps"]),

@@ -10,8 +10,12 @@ text and the central Config.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
+from pathlib import Path
+
+import nibabel as nib
 
 from config_loader import Config
 
@@ -54,6 +58,76 @@ def _replace_flag(parts: list[str], flag: str, value: str) -> None:
     parts[:] = filtered
 
 
+def _remove_flag(parts: list[str], flag: str) -> None:
+    """Remove a flag in either split (--flag VALUE) or equals (--flag=VALUE) form."""
+    stem = flag.strip().split()[0].rstrip("=")
+    filtered: list[str] = []
+    i = 0
+    while i < len(parts):
+        token = parts[i]
+        if token == stem:
+            i += 1
+            continue
+        if token.startswith(f"{stem}="):
+            i += 1
+            continue
+        filtered.append(token)
+        i += 1
+    parts[:] = filtered
+
+
+def _fix_generic_fieldmap(parts: list[str], cfg: Config) -> None:
+    if "--ignore" not in parts:
+        _ensure_flag(parts, "--use-syn-sdc")
+    _ensure_flag(parts, "--ignore fieldmaps")
+
+
+def _repair_missing_tr(parts: list[str], cfg) -> None:
+    bids_dir: Path | None = None
+    participant_label: str | None = None
+
+    i = 0
+    while i < len(parts):
+        token = parts[i]
+        if token == "-v" and i + 1 < len(parts):
+            mount = parts[i + 1]
+            if mount.endswith(":/data:ro"):
+                host_path = mount[: -len(":/data:ro")]
+                bids_dir = Path(host_path)
+            i += 2
+            continue
+        if token == "--participant-label" and i + 1 < len(parts):
+            participant_label = parts[i + 1]
+            i += 2
+            continue
+        i += 1
+
+    if bids_dir is None or participant_label is None:
+        _ensure_flag(parts, "--skip-bids-validation")
+        return
+
+    participant = participant_label if participant_label.startswith("sub-") else f"sub-{participant_label}"
+    subject_dir = bids_dir / participant
+    nii_files = sorted(subject_dir.glob("ses-*/func/*_bold.nii.gz"))
+    nii_files.extend(sorted((subject_dir / "func").glob("*_bold.nii.gz")))
+
+    for nii in nii_files:
+        sidecar = nii.with_name(nii.name[:-7] + ".json")
+        if sidecar.exists():
+            try:
+                data = json.loads(sidecar.read_text())
+            except Exception:
+                data = {}
+        else:
+            data = {}
+        tr = float(nib.load(str(nii)).header.get_zooms()[3])
+        data["RepetitionTime"] = tr
+        sidecar.write_text(json.dumps(data, indent=2, sort_keys=False) + "\n")
+
+    _remove_flag(parts, "--skip-bids-validation")
+    _ensure_flag(parts, "--skip-bids-validation")
+
+
 _FIX_RULES: list[tuple[str, object]] = [
     # Memory / OOM
     (r"(?i)(out.of.memory|oom|exit code 137|LOW-MEM|--low-mem)",
@@ -73,14 +147,18 @@ _FIX_RULES: list[tuple[str, object]] = [
 
     # Missing TR / BIDS metadata → skip validation so fMRIPrep proceeds
     (r"(?i)(RepetitionTime|BIDS_FIX|missing.*TR)",
-     lambda parts, cfg: _ensure_flag(parts, "--skip-bids-validation")),
+     _repair_missing_tr),
 
-    # Fieldmap errors
-    (r"(?i)(fieldmap|SDC|--use-syn-sdc|susceptibility)",
+    # SyN SDC requires PhaseEncodingDirection; if absent, drop SyN and ignore fieldmaps.
+    (r"(?i)(PhaseEncodingDirection.*absent|SyN.*PhaseEncoding|fieldmap-less.*PhaseEncoding)",
      lambda parts, cfg: (
-         _ensure_flag(parts, "--use-syn-sdc"),
+         _remove_flag(parts, "--use-syn-sdc"),
          _ensure_flag(parts, "--ignore fieldmaps"),
      )),
+
+    # Fieldmap errors
+    (r"(?i)(fieldmap|SDC|susceptibility)",
+     _fix_generic_fieldmap),
 
     # FreeSurfer issues
     (r"(?i)(freesurfer|recon-all|fs-no-reconall)",
