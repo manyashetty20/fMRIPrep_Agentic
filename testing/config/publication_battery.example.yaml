@@ -1,0 +1,31 @@
+# Copy to publication_battery.yaml and edit paths before running real fMRIPrep tests.
+#
+#   cp testing/config/publication_battery.example.yaml testing/config/publication_battery.yaml
+#
+# Quick local smoke (no Docker): use run_smoke.py instead.
+
+dataset:
+  # Absolute path recommended for real OpenNeuro downloads.
+  bids_dir: /path/to/ds000114
+  dataset_id: ds000114
+  # Leave empty to auto-discover all sub-* with T1w under bids_dir.
+  participants: [sub-01, sub-02, sub-03]
+  max_participants: null
+
+paths:
+  eval_root: ./testing/results/evaluation
+  output_root: ./testing/results/outputs
+  license_file: ./license.txt
+  config_yaml: ./config.yaml
+
+pipeline:
+  # Pin a tag for reproducibility (avoid :latest in papers).
+  docker_image: nipreps/fmriprep:24.1.1
+  anat_only: false
+  sloppy: false
+  low_mem: true
+  nprocs: 2
+
+# Optional extra CLI flags forwarded to main.py / run_baseline.py
+extra_main_args: []
+extra_baseline_args: []

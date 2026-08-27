@@ -1,0 +1,23 @@
+# Publication evaluation config — edit paths if your dataset moves.
+
+dataset:
+  bids_dir: /Users/manyashetty/Desktop/ds000114
+  dataset_id: ds000114
+  participants: [sub-01, sub-02, sub-03]
+  max_participants: null
+
+paths:
+  eval_root: ./testing/results/evaluation
+  output_root: ./testing/results/outputs
+  license_file: ./license.txt
+  config_yaml: ./config.yaml
+
+pipeline:
+  docker_image: nipreps/fmriprep:24.1.1
+  anat_only: false
+  sloppy: false
+  low_mem: true
+  nprocs: 2
+
+extra_main_args: []
+extra_baseline_args: []

@@ -1,0 +1,56 @@
+# Gold-standard fMRIPrep flag sets for config-agent correctness scoring.
+# Keys are dataset directory names (cfg.bids_dir.name) or explicit dataset_id overrides.
+# Each entry lists flag stems (and optional "flag value" pairs) that MUST appear in the
+# generated command. Extra flags beyond this set do not fail the check unless listed
+# under forbidden_flags.
+#
+# Edit this file for your paper's test cases — do not hardcode expectations in agents.
+
+datasets:
+  bids_input:
+    # Toy dataset under data/bids_input (no fmap, anat-only typical config).
+    required_flags:
+      - "--skip-bids-validation"
+      - "--anat-only"
+      - "--sloppy"
+      - "--low-mem"
+      - "--fs-no-reconall"
+      - "--use-syn-sdc"   # no fieldmaps in toy data
+    required_flag_values:
+      "--mem_mb": "4000"
+      "--nprocs": "1"
+      "--output-spaces": "MNI152NLin2009cAsym"
+    forbidden_flags: []
+    notes: "Derived from config.yaml defaults for data/bids_input; confirm before publication."
+
+# Expected diagnostic ROOT CAUSE labels per injected failure mode
+# (substring match, case-insensitive). Used by testing/analyze_results.py.
+expected_root_causes:
+  missing_tr:
+    - "Missing RepetitionTime"
+    - "RepetitionTime"
+  bad_readout:
+    - "Missing readout timing"
+    - "readout"
+  missing_fmap:
+    - "Fieldmap"
+    - "fieldmap"
+    - "SyN"
+    - "PhaseEncoding"
+  strip_phase_encoding:
+    - "PhaseEncodingDirection"
+    - "SyN"
+  malformed_json:
+    - "Unknown"
+    - "BIDS"
+    - "metadata"
+    - "JSON"
+  truncate_json:
+    - "Unknown"
+    - "BIDS"
+    - "metadata"
+    - "JSON"
+  oom:
+    - "OUT-OF-MEMORY"
+    - "out of memory"
+    - "OOM"
