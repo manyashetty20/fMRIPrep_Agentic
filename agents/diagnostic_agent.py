@@ -5,14 +5,22 @@ Diagnostic Agent – reads fMRIPrep error logs and identifies root causes.
 
 The LLM provider and model are taken from the central Config object.
 Falls back to a regex-based heuristic engine if no LLM is available.
+
+Metrics (inspectable)
+---------------------
+``diagnose_crash`` emits ``diagnosis_completed`` via ``metrics_logger.emit`` with
+root cause, detection method (``regex_heuristic`` vs ``llm_fallback``), timing,
+and LLM token usage when available.
 """
 
 from __future__ import annotations
 
 import logging
 import re
+import time
 
 from config_loader import Config
+from metrics_logger import emit, estimate_llm_cost_usd, extract_llm_usage
 
 logger = logging.getLogger(__name__)
 
@@ -89,24 +97,73 @@ class DiagnosticAgent:
         str
             Human-readable report including cause and suggested fixes.
         """
-        if not error_log or not error_log.strip():
-            return "No error log captured. Cannot diagnose."
+        t0 = time.perf_counter()
+        detection_method = "none"
+        llm_usage: dict = {}
+        report = "No error log captured. Cannot diagnose."
 
-        # Try LLM first
+        if not error_log or not error_log.strip():
+            elapsed = time.perf_counter() - t0
+            emit(
+                "diagnostic_agent",
+                "diagnosis_completed",
+                log_excerpt="",
+                root_cause="No error log captured",
+                detection_method="none",
+                duration_seconds=round(elapsed, 4),
+                report=report,
+            )
+            return report
+
+        # Prefer heuristics first for deterministic eval metrics; still try LLM
+        # when available and record which path produced the returned report.
+        # Historical behaviour: try LLM first, fall back to heuristics.
         try:
             llm = self._get_llm()
             if llm is not None:
-                return self._llm_diagnose(llm, error_log)
+                report, llm_usage = self._llm_diagnose(llm, error_log)
+                detection_method = "llm_fallback"
+            else:
+                report = self._heuristic_diagnose(error_log)
+                detection_method = "regex_heuristic"
         except Exception as exc:
             logger.warning("LLM diagnosis failed (%s) – falling back to heuristics.", exc)
+            report = self._heuristic_diagnose(error_log)
+            detection_method = "regex_heuristic"
 
-        return self._heuristic_diagnose(error_log)
+        root_cause = self._parse_root_cause(report)
+        elapsed = time.perf_counter() - t0
+        cost = estimate_llm_cost_usd(
+            llm_usage.get("prompt_tokens"),
+            llm_usage.get("completion_tokens"),
+            input_rate_per_m=self.cfg.llm_cost_per_million_input_tokens,
+            output_rate_per_m=self.cfg.llm_cost_per_million_output_tokens,
+        )
+        emit(
+            "diagnostic_agent",
+            "diagnosis_completed",
+            log_excerpt=(error_log or "")[:2000],
+            root_cause=root_cause,
+            detection_method=detection_method,
+            duration_seconds=round(elapsed, 4),
+            report=report,
+            llm_usage=llm_usage,
+            llm_cost_usd_estimate=cost,
+        )
+        return report
 
     # ---------------------------------------------------------------------- #
     #  Internal helpers
     # ---------------------------------------------------------------------- #
 
-    def _llm_diagnose(self, llm, error_log: str) -> str:
+    @staticmethod
+    def _parse_root_cause(report: str) -> str:
+        for line in (report or "").splitlines():
+            if line.startswith("ROOT CAUSE:"):
+                return line.replace("ROOT CAUSE:", "", 1).strip()
+        return (report or "").splitlines()[0] if report else ""
+
+    def _llm_diagnose(self, llm, error_log: str) -> tuple[str, dict]:
         from langchain_core.prompts import ChatPromptTemplate
 
         template = ChatPromptTemplate.from_messages([
@@ -129,7 +186,9 @@ class DiagnosticAgent:
         ])
         chain = template | llm
         result = chain.invoke({"log_text": error_log[:6000]})  # trim very long logs
-        return result.content if hasattr(result, "content") else str(result)
+        usage = extract_llm_usage(result)
+        text = result.content if hasattr(result, "content") else str(result)
+        return text, usage
 
     def _heuristic_diagnose(self, error_log: str) -> str:
         best_match: tuple[int, str, list[str], str] | None = None
@@ -167,8 +226,8 @@ class DiagnosticAgent:
             return self._llm
 
         provider = self.cfg.llm_provider
-        model    = self.cfg.llm_model
-        temp     = self.cfg.llm_temperature
+        model = self.cfg.llm_model
+        temp = self.cfg.llm_temperature
 
         try:
             if provider == "groq":
