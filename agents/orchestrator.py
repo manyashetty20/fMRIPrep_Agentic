@@ -33,6 +33,7 @@ from config_loader import Config
 from agents.config_agent import ConfigAgent
 from agents.diagnostic_agent import DiagnosticAgent
 from agents.recovery_agent import RecoveryAgent
+from metrics_logger import emit
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +157,21 @@ def build_graph(cfg: Config) -> object:
 
     def planning_node(state: AgentState) -> dict:
         logger.info("--- [GRAPH] Planning Phase ---")
+        emit(
+            "orchestrator",
+            "state_transition",
+            from_state=state.get("status", "planning"),
+            to_state="planning",
+            attempt_count=state.get("attempt_count", 0),
+        )
         cmd = config_agent.generate_command()
+        emit(
+            "orchestrator",
+            "state_transition",
+            from_state="planning",
+            to_state="executing",
+            attempt_count=0,
+        )
         return {
             "command": cmd,
             "status": "executing",
@@ -175,6 +190,7 @@ def build_graph(cfg: Config) -> object:
 
         cmd = state["command"]
         logger.info("Running: %s", cmd)
+        t0 = datetime.now(timezone.utc)
 
         try:
             result = subprocess.run(
@@ -184,7 +200,25 @@ def build_graph(cfg: Config) -> object:
                 capture_output=True,
                 text=True,
             )
+            duration = (datetime.now(timezone.utc) - t0).total_seconds()
             logger.info("Execution succeeded.\n%s", result.stdout[-2000:])
+            emit(
+                "orchestrator",
+                "execution_completed",
+                attempt=attempt,
+                status="success",
+                exit_code=0,
+                duration_seconds=round(duration, 4),
+                fmriprep_duration_seconds=round(duration, 4),
+                command=cmd,
+            )
+            emit(
+                "orchestrator",
+                "state_transition",
+                from_state="executing",
+                to_state="success",
+                attempt_count=attempt,
+            )
             return {
                 "status": "success",
                 "command": cmd,
@@ -196,13 +230,34 @@ def build_graph(cfg: Config) -> object:
                     "status": "success",
                     "exit_code": 0,
                     "command": cmd,
+                    "duration_seconds": round(duration, 4),
                     "stdout_tail": result.stdout[-2000:],
                 }],
             }
 
         except subprocess.CalledProcessError as exc:
             error_text = (exc.stderr or "") + (exc.stdout or "")
+            duration = (datetime.now(timezone.utc) - t0).total_seconds()
             logger.error("Execution failed (exit %d):\n%s", exc.returncode, error_text[-2000:])
+            emit(
+                "orchestrator",
+                "execution_completed",
+                attempt=attempt,
+                status="failed",
+                exit_code=exc.returncode,
+                duration_seconds=round(duration, 4),
+                fmriprep_duration_seconds=round(duration, 4),
+                command=cmd,
+                log_tail=error_text[-2000:],
+            )
+            emit(
+                "orchestrator",
+                "state_transition",
+                from_state="executing",
+                to_state="diagnosing",
+                attempt_count=attempt,
+                failure_detected=True,
+            )
             return {
                 "log": error_text,
                 "status": "diagnosing",
@@ -214,12 +269,24 @@ def build_graph(cfg: Config) -> object:
                     "status": "failed",
                     "exit_code": exc.returncode,
                     "command": cmd,
+                    "duration_seconds": round(duration, 4),
                     "log_tail": error_text[-2000:],
                 }],
             }
 
         except Exception as exc:
+            duration = (datetime.now(timezone.utc) - t0).total_seconds()
             logger.exception("Unexpected error during execution.")
+            emit(
+                "orchestrator",
+                "execution_completed",
+                attempt=attempt,
+                status="failed",
+                exit_code=None,
+                duration_seconds=round(duration, 4),
+                command=cmd,
+                log_tail=str(exc),
+            )
             return {
                 "log": str(exc),
                 "status": "diagnosing",
@@ -231,6 +298,7 @@ def build_graph(cfg: Config) -> object:
                     "status": "failed",
                     "exit_code": None,
                     "command": cmd,
+                    "duration_seconds": round(duration, 4),
                     "log_tail": str(exc),
                 }],
             }
@@ -267,8 +335,22 @@ def build_graph(cfg: Config) -> object:
 
     def diagnostic_node(state: AgentState) -> dict:
         logger.info("--- [GRAPH] Diagnostic Phase ---")
+        emit(
+            "orchestrator",
+            "state_transition",
+            from_state=state.get("status", "diagnosing"),
+            to_state="diagnosis",
+            attempt_count=state.get("attempt_count", 0),
+        )
         report = diagnostic_agent.diagnose_crash(state["log"])
         logger.info("Diagnosis:\n%s", report)
+        emit(
+            "orchestrator",
+            "state_transition",
+            from_state="diagnosis",
+            to_state="recovering",
+            attempt_count=state.get("attempt_count", 0),
+        )
         return {
             "history": [report],
             "status": "recovering",
@@ -283,12 +365,22 @@ def build_graph(cfg: Config) -> object:
     def recovery_node(state: AgentState) -> dict:
         logger.info("--- [GRAPH] Recovery Phase ---")
         latest_diagnosis = state["history"][-1] if state["history"] else ""
-        new_cmd = recovery_agent.apply_fix(state["command"], latest_diagnosis)
+        attempt = state.get("attempt_count", 0)
+        new_cmd = recovery_agent.apply_fix(
+            state["command"], latest_diagnosis, retry_attempt=attempt
+        )
         logger.info("Recovered command:\n%s", new_cmd)
         changed = _tokenize_command(new_cmd) != _tokenize_command(state["command"])
         bids_data_fix = bool(re.search(r"(?i)(BIDS_FIX|RepetitionTime|missing.*TR)", latest_diagnosis))
         if not changed and not bids_data_fix:
             logger.warning("Recovery phase produced no command change.")
+            emit(
+                "orchestrator",
+                "state_transition",
+                from_state="recovering",
+                to_state="unrecoverable",
+                attempt_count=attempt,
+            )
             return {
                 "command": new_cmd,
                 "status": "unrecoverable",
@@ -297,13 +389,21 @@ def build_graph(cfg: Config) -> object:
                 "events": [{
                     "type": "recovery",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "attempt": state.get("attempt_count", 0),
+                    "attempt": attempt,
                     "changed": False,
                     "command": new_cmd,
                 }],
             }
         elif not changed and bids_data_fix:
             logger.info("Recovery phase wrote BIDS sidecar fix – retrying with same command.")
+        emit(
+            "orchestrator",
+            "state_transition",
+            from_state="recovering",
+            to_state="relaunch",
+            attempt_count=attempt,
+            command_changed=changed or bids_data_fix,
+        )
         return {
             "command": new_cmd,
             "status": "executing",
@@ -311,7 +411,7 @@ def build_graph(cfg: Config) -> object:
             "events": [{
                 "type": "recovery",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "attempt": state.get("attempt_count", 0),
+                "attempt": attempt,
                 "changed": True,
                 "command": new_cmd,
             }],
@@ -552,6 +652,39 @@ def build_graph(cfg: Config) -> object:
         report = "\n".join(report_lines)
         _persist_qa_results(report, metrics)
         logger.info(report)
+        thresholds = metrics.get("qa_thresholds", {})
+        emit(
+            "qa_node",
+            "qa_completed",
+            raw_nonzero_voxels=metrics.get("raw_nonzero_voxels"),
+            preprocessed_nonzero_voxels=metrics.get("preprocessed_nonzero_voxels"),
+            brain_mask_nonzero_voxels=metrics.get("brain_mask_nonzero_voxels"),
+            brain_mask_retention_ratio=metrics.get("brain_mask_retention_ratio"),
+            skull_strip_reduction_pct=(
+                round(float(metrics["skull_strip_reduction"]) * 100.0, 4)
+                if metrics.get("skull_strip_reduction") is not None
+                else None
+            ),
+            non_brain_tissue_reduction_pct=(
+                round(float(metrics["skull_strip_reduction"]) * 100.0, 4)
+                if metrics.get("skull_strip_reduction") is not None
+                else None
+            ),
+            mni_normalization_success=bool(metrics.get("mni_found")),
+            qa_verdict=metrics.get("qa_summary"),
+            thresholds_used=thresholds,
+            report_found=metrics.get("report_found"),
+            output_found=metrics.get("output_found"),
+            brain_mask_found=metrics.get("brain_mask_found"),
+        )
+        emit(
+            "orchestrator",
+            "state_transition",
+            from_state=state.get("status", "success"),
+            to_state="qa_complete",
+            attempt_count=state.get("attempt_count", 0),
+            final_verdict=metrics.get("qa_summary"),
+        )
         return {
             "history": [report],
             "status": "completed",
