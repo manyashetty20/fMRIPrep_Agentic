@@ -8,9 +8,12 @@ The mutated tree is written to ``--work-dir``; the original dataset is never mod
 
 Modes
 -----
-- ``missing_tr`` — remove ``RepetitionTime`` from one ``*_bold.json`` sidecar.
+- ``missing_tr`` — remove ``RepetitionTime`` from ``*_bold.json`` sidecars.
 - ``missing_fmap`` — hide ``<sub>/fmap`` by renaming it (dataset acts as if fieldmaps are absent).
 - ``bad_readout`` — remove ``TotalReadoutTime`` and ``EffectiveEchoSpacing`` from ``*_bold.json``.
+- ``strip_phase_encoding`` — remove ``PhaseEncodingDirection`` from ``*_bold.json``.
+- ``malformed_json`` — write invalid JSON into one ``*_bold.json`` sidecar.
+- ``truncate_json`` — truncate a ``*_bold.json`` file mid-object (unparseable).
 - ``oom`` — does **not** change files; prints how to pair with ``scripts/mock_docker.py`` and
   ``FMRIPREP_MOCK_FORCE_EXIT137=1`` for a repeatable exit 137.
 
@@ -33,7 +36,15 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from bids_discovery import list_bids_participants
 
-FAILURE_MODES = frozenset({"oom", "missing_tr", "missing_fmap", "bad_readout"})
+FAILURE_MODES = frozenset({
+    "oom",
+    "missing_tr",
+    "missing_fmap",
+    "bad_readout",
+    "strip_phase_encoding",
+    "malformed_json",
+    "truncate_json",
+})
 DEFAULT_TOTAL_READOUT_TIME = 0.05
 DEFAULT_EFFECTIVE_ECHO_SPACING = 0.0005
 
@@ -252,6 +263,29 @@ def main() -> None:
             hidden = target_fmap.parent / "_injected_fmap_backup"
             target_fmap.rename(hidden)
             manifest["hidden_fieldmap_dir"] = str(hidden)
+
+        elif args.mode == "strip_phase_encoding":
+            sidecars = _pick_all_bold_jsons(subject_dir)
+            for j in sidecars:
+                _strip_keys(j, {"PhaseEncodingDirection"})
+            manifest["edited_sidecars"] = [str(p) for p in sidecars]
+
+        elif args.mode == "malformed_json":
+            sidecar = _pick_bold_json(subject_dir)
+            sidecar.write_text("{ this is not valid JSON: true, \n")
+            manifest["edited_sidecars"] = [str(sidecar)]
+            manifest["corruption"] = "malformed_json"
+
+        elif args.mode == "truncate_json":
+            sidecar = _pick_bold_json(subject_dir)
+            original = sidecar.read_text()
+            if len(original) < 8:
+                raise RuntimeError(f"Sidecar too small to truncate: {sidecar}")
+            cut = max(8, len(original) // 3)
+            sidecar.write_text(original[:cut])
+            manifest["edited_sidecars"] = [str(sidecar)]
+            manifest["corruption"] = "truncate_json"
+            manifest["truncated_bytes"] = cut
 
         (dst / ".agentic_failure_injection.json").write_text(json.dumps(manifest, indent=2) + "\n")
         print(json.dumps(manifest, indent=2))
