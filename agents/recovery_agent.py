@@ -6,6 +6,11 @@ to the fMRIPrep Docker command.
 
 No hardcoded paths or values – everything is derived from the diagnosis
 text and the central Config.
+
+Metrics (inspectable)
+---------------------
+``apply_fix`` emits ``recovery_applied`` via ``metrics_logger.emit`` with
+root cause received, repair actions, command diff, retry attempt, and timing.
 """
 
 from __future__ import annotations
@@ -13,11 +18,13 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from pathlib import Path
 
 import nibabel as nib
 
 from config_loader import Config
+from metrics_logger import emit
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +135,10 @@ def _repair_missing_tr(parts: list[str], cfg) -> None:
     _ensure_flag(parts, "--skip-bids-validation")
 
 
-_FIX_RULES: list[tuple[str, object]] = [
+_FIX_RULES: list[tuple[str, str, object]] = [
     # Memory / OOM
     (r"(?i)(out.of.memory|oom|exit code 137|LOW-MEM|--low-mem)",
+     "oom_low_mem",
      lambda parts, cfg: (
          _ensure_flag(parts, "--low-mem"),
          _replace_flag(parts, "--mem_mb ", str(cfg.mem_mb)),
@@ -139,6 +147,7 @@ _FIX_RULES: list[tuple[str, object]] = [
 
     # Missing readout timing metadata
     (r"(?i)(readout time|readout timing|fallback-total-readout-time|Unknown total-readout time specification)",
+     "fallback_readout_time",
      lambda parts, cfg: _replace_flag(
          parts,
          "--fallback-total-readout-time ",
@@ -147,10 +156,12 @@ _FIX_RULES: list[tuple[str, object]] = [
 
     # Missing TR / BIDS metadata → skip validation so fMRIPrep proceeds
     (r"(?i)(RepetitionTime|BIDS_FIX|missing.*TR)",
+     "repair_missing_tr",
      _repair_missing_tr),
 
     # SyN SDC requires PhaseEncodingDirection; if absent, drop SyN and ignore fieldmaps.
     (r"(?i)(PhaseEncodingDirection.*absent|SyN.*PhaseEncoding|fieldmap-less.*PhaseEncoding)",
+     "drop_syn_ignore_fieldmaps",
      lambda parts, cfg: (
          _remove_flag(parts, "--use-syn-sdc"),
          _ensure_flag(parts, "--ignore fieldmaps"),
@@ -158,14 +169,17 @@ _FIX_RULES: list[tuple[str, object]] = [
 
     # Fieldmap errors
     (r"(?i)(fieldmap|SDC|susceptibility)",
+     "generic_fieldmap_fix",
      _fix_generic_fieldmap),
 
     # FreeSurfer issues
     (r"(?i)(freesurfer|recon-all|fs-no-reconall)",
+     "fs_no_reconall",
      lambda parts, cfg: _ensure_flag(parts, "--fs-no-reconall")),
 
     # Filesystem naming conflict → skip problematic FreeSurfer sub-stages
     (r"(?i)(naming conflict|FileExists|nogcareg|nocanorm)",
+     "fs_naming_conflict",
      lambda parts, cfg: (
          _ensure_flag(parts, "--fs-no-reconall"),
      )),
@@ -188,7 +202,7 @@ class RecoveryAgent:
     #  Public API
     # ---------------------------------------------------------------------- #
 
-    def apply_fix(self, command: str, diagnosis_report: str) -> str:
+    def apply_fix(self, command: str, diagnosis_report: str, *, retry_attempt: int = 0) -> str:
         """
         Return a modified command with fixes applied.
 
@@ -198,32 +212,55 @@ class RecoveryAgent:
             The Docker command that failed (may contain shell line-continuations).
         diagnosis_report : str
             Plain-text output from DiagnosticAgent.diagnose_crash().
+        retry_attempt : int
+            Current orchestrator attempt count (logged for metrics).
 
         Returns
         -------
         str
             Updated command string, ready to pass to subprocess.
         """
-        # Normalise the command: strip markdown fences and line continuations
+        t0 = time.perf_counter()
         clean = self._normalise(command)
         parts = clean.split()
         diagnosis = diagnosis_report or ""
+        original = clean
 
         applied: list[str] = []
-        for pattern, fix_fn in _FIX_RULES:
+        for pattern, action_name, fix_fn in _FIX_RULES:
             if re.search(pattern, diagnosis):
                 fix_fn(parts, self.cfg)
-                applied.append(pattern)
+                applied.append(action_name)
 
         if not applied:
             logger.warning(
                 "RecoveryAgent: no fix rule matched the diagnosis. "
                 "Returning original command."
             )
-            return clean
+            new_cmd = clean
+        else:
+            logger.info("RecoveryAgent applied %d fix rule(s): %s", len(applied), applied)
+            new_cmd = " ".join(parts)
 
-        logger.info("RecoveryAgent applied %d fix rule(s): %s", len(applied), applied)
-        return " ".join(parts)
+        root_cause = ""
+        for line in diagnosis.splitlines():
+            if line.startswith("ROOT CAUSE:"):
+                root_cause = line.replace("ROOT CAUSE:", "", 1).strip()
+                break
+
+        elapsed = time.perf_counter() - t0
+        emit(
+            "recovery_agent",
+            "recovery_applied",
+            root_cause_received=root_cause,
+            repair_actions=applied,
+            retry_attempt=retry_attempt,
+            command_before=original,
+            command_after=new_cmd,
+            command_changed=(new_cmd.split() != original.split()),
+            duration_seconds=round(elapsed, 4),
+        )
+        return new_cmd
 
     # ---------------------------------------------------------------------- #
     #  Internal helpers
