@@ -36,6 +36,7 @@ from bids_discovery import is_all_participants_token, list_bids_participants
 from config_loader import Config
 from agents.orchestrator import build_graph
 from evaluation_export import append_evaluation_exports, build_evaluation_row
+from metrics_logger import emit, init_run, reset as reset_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,12 @@ def parse_args() -> argparse.Namespace:
         "--no-diagnosis",
         action="store_true",
         help="Ablation: disable the diagnostic agent on failures.",
+    )
+    parser.add_argument(
+        "--injected-failure-mode",
+        metavar="MODE",
+        default="",
+        help="Test metadata tag (e.g. missing_tr) recorded in evaluation exports.",
     )
 
     # --- LLM ---
@@ -223,7 +230,13 @@ def main() -> None:
                 batch_overrides = dict(overrides)
                 batch_overrides["subject.participant_id"] = pid
                 cfg = Config(yaml_path=base_yaml, overrides=batch_overrides)
-                rc = _run_one(cfg, batch_index=i, batch_total=total, participant_scope="all")
+                rc = _run_one(
+                    cfg,
+                    batch_index=i,
+                    batch_total=total,
+                    participant_scope="all",
+                    injected_failure_mode=args.injected_failure_mode or "",
+                )
                 any_fail = any_fail or (rc != 0)
             except Exception as exc:
                 logger.exception(
@@ -238,7 +251,11 @@ def main() -> None:
         sys.exit(1 if any_fail else 0)
 
     # Single participant
-    rc = _run_one(base_cfg, participant_scope="single")
+    rc = _run_one(
+        base_cfg,
+        participant_scope="single",
+        injected_failure_mode=args.injected_failure_mode or "",
+    )
     sys.exit(rc)
 
 
@@ -248,6 +265,7 @@ def _run_one(
     batch_index: int | None = None,
     batch_total: int | None = None,
     participant_scope: str = "single",
+    injected_failure_mode: str = "",
 ) -> int:
     """Return process exit code (0 = pipeline reports success/completed)."""
 
@@ -263,6 +281,17 @@ def _run_one(
     )
 
     t0 = time.perf_counter()
+    metrics = init_run(
+        subject_id=cfg.participant_id,
+        metrics_dir=cfg.metrics_dir,
+        dataset_id=cfg.bids_dir.name,
+    )
+    emit(
+        "orchestrator",
+        "subject_run_started",
+        metrics_path=str(metrics.path),
+        injected_failure_mode=injected_failure_mode or "",
+    )
     app = build_graph(cfg)
 
     initial_state = {
@@ -277,6 +306,26 @@ def _run_one(
 
     final_state = app.invoke(initial_state)
     wall = time.perf_counter() - t0
+
+    # Orchestration overhead = total wall clock minus summed fMRIPrep execution durations.
+    exec_events = [
+        e for e in metrics.events
+        if e.get("event_type") == "execution_completed"
+    ]
+    fmriprep_secs = sum(float(e.get("fmriprep_duration_seconds") or e.get("duration_seconds") or 0) for e in exec_events)
+    emit(
+        "orchestrator",
+        "subject_run_completed",
+        final_status=final_state.get("status"),
+        total_retries=max(0, int(final_state.get("attempt_count", 0)) - 1),
+        attempt_count=final_state.get("attempt_count", 0),
+        wall_clock_seconds=round(wall, 4),
+        fmriprep_cli_seconds=round(fmriprep_secs, 4),
+        orchestration_overhead_seconds=round(max(0.0, wall - fmriprep_secs), 4),
+        metrics_path=str(metrics.flush()),
+        injected_failure_mode=injected_failure_mode or "",
+    )
+
     _write_publication_artifacts(
         cfg,
         final_state,
@@ -284,7 +333,11 @@ def _run_one(
         batch_index=batch_index,
         batch_total=batch_total,
         participant_scope=participant_scope,
+        injected_failure_mode=injected_failure_mode,
+        run_id=metrics.run_id,
+        metrics_path=str(metrics.path),
     )
+    reset_metrics()
 
     _print_report(final_state)
 
@@ -300,12 +353,17 @@ def _write_publication_artifacts(
     batch_index: int | None,
     batch_total: int | None,
     participant_scope: str,
+    injected_failure_mode: str = "",
+    run_id: str = "",
+    metrics_path: str = "",
 ) -> None:
     out_dir = cfg.output_dir / "agentic_results" / cfg.participant_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
     run_summary = {
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "run_id": run_id,
+        "metrics_path": metrics_path,
         "participant": cfg.participant_id,
         "bids_dir": str(cfg.bids_dir),
         "output_dir": str(cfg.output_dir),
@@ -343,6 +401,9 @@ def _write_publication_artifacts(
         batch_index=batch_index,
         batch_total=batch_total,
         participant_scope=participant_scope,
+        injected_failure_mode=injected_failure_mode,
+        run_id=run_id,
+        metrics_path=metrics_path,
     )
     (out_dir / "evaluation_row.json").write_text(json.dumps(evaluation_row, indent=2, sort_keys=True) + "\n")
     append_evaluation_exports(evaluation_row, eval_root=cfg.evaluation_export_root)
