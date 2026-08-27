@@ -20,8 +20,8 @@ subject:
 
 # --- fMRIPrep Pipeline Options ---
 pipeline:
-  anat_only: true                # Run anatomical workflow only (faster / toy mode)
-  sloppy: true                   # Low-precision math (good for testing)
+  anat_only: false               # Full BOLD workflow (match ds000114 full run)
+  sloppy: false                  # Full-precision math (match --no-sloppy)
   skip_bids_validation: true
   low_mem: true
   mem_mb: 4000
@@ -56,6 +56,25 @@ qa:
   max_brain_mask_retention_ratio: 0.25   # 25% — shouldn't exceed 25% 
   min_skull_strip_reduction: 0.75        # 75% — at least 75% of preprocessed volume should be non-brain
   max_skull_strip_reduction: 0.95        # 95% — skull strip shouldn't remove more than 95%
+
+# --- Evaluation / metrics (paper-facing; keep values here, not buried in agents) ---
+evaluation:
+  metrics_dir: "./output/metrics"   # JSONL event logs: metrics_<run_id>.jsonl
+  gold_standard_file: "./testing/fixtures/gold_standard_commands.yaml"
+  official_flags_file: "./data/fmriprep_cli_flags.txt"
+  # Failure-injection modes available to the trial runner (see scripts/inject_failures.py).
+  failure_injection_modes:
+    - missing_tr
+    - bad_readout
+    - missing_fmap
+    - strip_phase_encoding
+    - malformed_json
+    - truncate_json
+    - oom
+  default_injection_trials: 3
+  # Approximate Groq pricing used only for cost estimates (USD per 1M tokens). Override for your plan.
+  llm_cost_per_million_input_tokens: 0.59
+  llm_cost_per_million_output_tokens: 0.79
 
 # --- Logging ---
 logging:

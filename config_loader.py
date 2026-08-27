@@ -64,6 +64,22 @@ _DEFAULTS: dict[str, Any] = {
     "qa.min_skull_strip_reduction":      0.005,
     "qa.max_skull_strip_reduction":      0.30,
 
+    "evaluation.metrics_dir": "./output/metrics",
+    "evaluation.gold_standard_file": "./testing/fixtures/gold_standard_commands.yaml",
+    "evaluation.official_flags_file": "./data/fmriprep_cli_flags.txt",
+    "evaluation.failure_injection_modes": [
+        "missing_tr",
+        "bad_readout",
+        "missing_fmap",
+        "strip_phase_encoding",
+        "malformed_json",
+        "truncate_json",
+        "oom",
+    ],
+    "evaluation.default_injection_trials": 3,
+    "evaluation.llm_cost_per_million_input_tokens": 0.59,
+    "evaluation.llm_cost_per_million_output_tokens": 0.79,
+
     "logging.level":    "INFO",
     "logging.log_file": None,
 }
@@ -342,6 +358,35 @@ class Config:
     @property
     def max_skull_strip_reduction(self) -> float:
         return float(self._cfg.get("qa.max_skull_strip_reduction", 0.30))
+
+    @property
+    def metrics_dir(self) -> Path:
+        return self._abs("evaluation.metrics_dir")
+
+    @property
+    def gold_standard_file(self) -> Path:
+        return self._abs("evaluation.gold_standard_file")
+
+    @property
+    def official_flags_file(self) -> Path:
+        return self._abs("evaluation.official_flags_file")
+
+    @property
+    def failure_injection_modes(self) -> list[str]:
+        raw = self._cfg.get("evaluation.failure_injection_modes") or []
+        return [str(x) for x in raw]
+
+    @property
+    def default_injection_trials(self) -> int:
+        return int(self._cfg.get("evaluation.default_injection_trials", 3))
+
+    @property
+    def llm_cost_per_million_input_tokens(self) -> float:
+        return float(self._cfg.get("evaluation.llm_cost_per_million_input_tokens", 0.59))
+
+    @property
+    def llm_cost_per_million_output_tokens(self) -> float:
+        return float(self._cfg.get("evaluation.llm_cost_per_million_output_tokens", 0.79))
 
     # ---------------------------------------------------------------------- #
     #  Helpers
