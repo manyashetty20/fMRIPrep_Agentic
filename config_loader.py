@@ -47,7 +47,7 @@ _DEFAULTS: dict[str, Any] = {
     "pipeline.output_space": "MNI152NLin2009cAsym",
 
     "llm.provider":       "groq",
-    "llm.model_name":     "llama-3.3-70b-versatile",
+    "llm.model_name":     "openai/gpt-oss-120b",
     "llm.temperature":    0,
 
     "embeddings.model_name": "all-MiniLM-L6-v2",
@@ -305,7 +305,7 @@ class Config:
 
     @property
     def llm_model(self) -> str:
-        return str(self._cfg.get("llm.model_name", "llama-3.3-70b-versatile"))
+        return str(self._cfg.get("llm.model_name", "openai/gpt-oss-120b"))
 
     @property
     def llm_temperature(self) -> float:

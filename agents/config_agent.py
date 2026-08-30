@@ -76,13 +76,28 @@ class ConfigAgent:
             cmd, fallback_flags = self._rule_based_command_with_reasons()
             self._generation_method = "rule_based_after_llm_error"
 
-        if self._generation_method == "rag_llm":
-            # Still record auto-fallback rationale for the dataset (even if LLM chose flags).
-            _, fallback_flags = self._rule_based_command_with_reasons()
-
         elapsed = time.perf_counter() - t0
         flag_list = self._extract_flag_stems(cmd)
         hallucinated = self._hallucination_check(cmd)
+        
+        # Flag validation: reject commands with unknown flags to prevent execution failures
+        if hallucinated:
+            logger.warning(
+                "Generated command contains unrecognized fMRIPrep flags: %s. "
+                "Falling back to rule-based generation to ensure valid command.",
+                hallucinated
+            )
+            cmd, fallback_flags = self._rule_based_command_with_reasons()
+            self._generation_method = "rule_based_after_flag_validation"
+            flag_list = self._extract_flag_stems(cmd)
+            hallucinated = self._hallucination_check(cmd)
+            # If rule-based also has issues (shouldn't happen), log but proceed
+            if hallucinated:
+                logger.error("Rule-based command also contains unrecognized flags: %s", hallucinated)
+        elif self._generation_method == "rag_llm":
+            # LLM generation passed validation, but still record rule-based fallbacks for comparison
+            _, fallback_flags = self._rule_based_command_with_reasons()
+        
         gold = self._gold_standard_check(cmd)
         cost = estimate_llm_cost_usd(
             self._last_llm_usage.get("prompt_tokens"),
@@ -105,6 +120,7 @@ class ConfigAgent:
             duration_seconds=round(elapsed, 4),
             llm_usage=self._last_llm_usage,
             llm_cost_usd_estimate=cost,
+            validation_flagged=len(hallucinated) > 0,
         )
         return cmd
 
@@ -131,6 +147,9 @@ class ConfigAgent:
             "/data /out participant",
             f"--participant-label {cfg.participant_id.replace('sub-', '')}",
         ]
+
+        if cfg.session_id:
+            parts.append(f"--session-label {cfg.session_id}")
 
         if cfg.skip_bids_validation:
             parts.append("--skip-bids-validation")
@@ -199,6 +218,7 @@ RULES:
   4. If ANAT_ONLY is True, add --anat-only.
   5. If SLOPPY_MODE is True, add --sloppy.
   6. If LOW_MEM is True, add --low-mem and --mem_mb {cfg.mem_mb}.
+  7. If SESSION is not "none", add --session-label {cfg.session_id} (NOT --session-id).
 """
         # Prefer retriever+LLM so we can log source chunks for retrieval-precision analysis.
         retriever = getattr(chain, "retriever", None)
@@ -351,10 +371,13 @@ RULES:
         if not official:
             return []
         # Allow common docker CLI flags that appear before the image entrypoint.
-        docker_ok = {"-v", "-e", "--rm", "--user", "-u", "--gpus", "-w"}
+        docker_ok = {"-v", "-e", "--rm", "--user", "-u", "--gpus", "-w", "-ti"}
+        # Temporarily allow --session-label until it's added to the official flags file
+        # Also allow --fs-license-file as an alternative license mounting approach
+        temporarily_allowed = {"--session-label", "--fs-license-file"}
         unknown: list[str] = []
         for stem in self._extract_flag_stems(command):
-            if stem in docker_ok:
+            if stem in docker_ok or stem in temporarily_allowed:
                 continue
             if stem not in official:
                 unknown.append(stem)
