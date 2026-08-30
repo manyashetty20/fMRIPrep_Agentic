@@ -1,0 +1,82 @@
+# ============================================================
+# Agentic fMRIPrep – Central Configuration
+# All paths are relative to the project root unless absolute.
+# ============================================================
+
+# --- Paths ---
+paths:
+  bids_dir: "/Users/manyashetty/Desktop/ds000114_ses-test_only"
+  output_dir: "./outputs"
+  evaluation_export_root: "./output"
+  work_dir: "./outputs/work"
+  license_file: "./license.txt"
+  docs_dir: "./data/docs"
+  vector_db_dir: "./database/vector_store"
+
+# --- Subject / Session ---
+subject:
+  participant_id: "sub-01"       # e.g. "sub-01" or "all"
+  session_id: null               # null = no session filter
+
+# --- fMRIPrep Pipeline Options ---
+pipeline:
+  anat_only: false               # Full BOLD workflow (match ds000114 full run)
+  sloppy: false                  # Full-precision math (match --no-sloppy)
+  skip_bids_validation: true
+  low_mem: true
+  mem_mb: 4000
+  nprocs: 1
+  fallback_total_readout_time: 0.05
+  output_space: "MNI152NLin2009cAsym"
+  docker_image: "nipreps/fmriprep:latest"
+  
+# --- LLM / Embedding Settings ---
+llm:
+  provider: "groq"               # "groq" | "openai" | "anthropic"
+  model_name: "openai/gpt-oss-120b"
+  temperature: 0
+
+embeddings:
+  model_name: "all-MiniLM-L6-v2"
+
+# --- Agent Behaviour ---
+agents:
+  max_recovery_attempts: 3       # Give up after this many retries
+  recovery_enabled: true         # Ablation: set false for "plan + diagnose only" baselines
+  diagnosis_enabled: true        # Ablation: set false to skip diagnostic agent on failures
+  vision_enabled: true           # Run Vision QA after successful run (or after skips)
+
+# --- QA Thresholds ---
+# threshold_preset: use "custom" to rely only on the numeric fields below, or
+# "mriqc_inspired_heuristic" to apply preset gates documented in config_loader (compare with MRIQC IQMs for papers).
+qa:
+  threshold_preset: custom
+  literature_reference_note: ""
+  min_brain_mask_retention_ratio: 0.05   # 5% — brain mask should be at least 5% of preprocessed volume
+  max_brain_mask_retention_ratio: 0.25   # 25% — shouldn't exceed 25% 
+  min_skull_strip_reduction: 0.75        # 75% — at least 75% of preprocessed volume should be non-brain
+  max_skull_strip_reduction: 0.95        # 95% — skull strip shouldn't remove more than 95%
+
+# --- Evaluation / metrics (paper-facing; keep values here, not buried in agents) ---
+evaluation:
+  metrics_dir: "./output/metrics"   # JSONL event logs: metrics_<run_id>.jsonl
+  gold_standard_file: "./testing/fixtures/gold_standard_commands.yaml"
+  official_flags_file: "./data/fmriprep_cli_flags.txt"
+  # Failure-injection modes available to the trial runner (see scripts/inject_failures.py).
+  failure_injection_modes:
+    - missing_tr
+    - bad_readout
+    - missing_fmap
+    - strip_phase_encoding
+    - malformed_json
+    - truncate_json
+    - oom
+  default_injection_trials: 3
+  # Approximate Groq pricing used only for cost estimates (USD per 1M tokens). Override for your plan.
+  llm_cost_per_million_input_tokens: 0.59
+  llm_cost_per_million_output_tokens: 0.79
+
+# --- Logging ---
+logging:
+  level: "INFO"                  # DEBUG | INFO | WARNING | ERROR
+  log_file: "./logs/agentic_run.log"   # null = stdout only
