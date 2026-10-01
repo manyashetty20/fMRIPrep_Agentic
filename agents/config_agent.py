@@ -25,6 +25,7 @@ from typing import Any
 
 import yaml
 
+from cli_validation import extract_flag_stems, unknown_fmriprep_flags
 from config_loader import Config
 from metrics_logger import emit, estimate_llm_cost_usd, extract_llm_usage
 
@@ -65,19 +66,28 @@ class ConfigAgent:
         fallback_flags: list[dict[str, str]] = []
 
         try:
-            chain = self._get_qa_chain()
-            if chain is not None:
-                cmd = self._llm_command(chain)
-                self._generation_method = "rag_llm"
-            else:
+            mode = (self.cfg.config_generation_mode or "rule_only").strip()
+            if mode == "rule_only":
                 cmd, fallback_flags = self._rule_based_command_with_reasons()
+                self._generation_method = "rule_based"
+            elif mode == "no_rag":
+                cmd = self._llm_command(chain=None, use_rag=False)
+                self._generation_method = "llm_no_rag"
+            else:
+                chain = self._get_qa_chain()
+                if chain is not None:
+                    cmd = self._llm_command(chain, use_rag=True)
+                    self._generation_method = "rag_llm"
+                else:
+                    cmd, fallback_flags = self._rule_based_command_with_reasons()
+                    self._generation_method = "rule_based"
         except Exception as exc:
             logger.warning("LLM command generation failed (%s) – falling back to rule-based.", exc)
             cmd, fallback_flags = self._rule_based_command_with_reasons()
             self._generation_method = "rule_based_after_llm_error"
 
         elapsed = time.perf_counter() - t0
-        flag_list = self._extract_flag_stems(cmd)
+        flag_list = extract_flag_stems(cmd)
         hallucinated = self._hallucination_check(cmd)
         
         # Flag validation: reject commands with unknown flags to prevent execution failures
@@ -89,7 +99,7 @@ class ConfigAgent:
             )
             cmd, fallback_flags = self._rule_based_command_with_reasons()
             self._generation_method = "rule_based_after_flag_validation"
-            flag_list = self._extract_flag_stems(cmd)
+            flag_list = extract_flag_stems(cmd)
             hallucinated = self._hallucination_check(cmd)
             # If rule-based also has issues (shouldn't happen), log but proceed
             if hallucinated:
@@ -166,13 +176,25 @@ class ConfigAgent:
             parts.append(f"--output-spaces {cfg.output_space}")
 
         if not has_fmap:
-            parts.append("--use-syn-sdc")
-            fallbacks.append(
-                {
-                    "flag": "--use-syn-sdc",
-                    "reason": "No fieldmap directory found for participant; enabling fieldmap-less SyN SDC.",
-                }
-            )
+            if cfg.should_enable_syn_sdc():
+                parts.append("--use-syn-sdc")
+                fallbacks.append(
+                    {
+                        "flag": "--use-syn-sdc",
+                        "reason": "No fieldmap directory found for participant; enabling fieldmap-less SyN SDC.",
+                    }
+                )
+            else:
+                parts.append("--ignore fieldmaps")
+                fallbacks.append(
+                    {
+                        "flag": "--ignore fieldmaps",
+                        "reason": (
+                            "No fieldmap directory, and PhaseEncodingDirection is missing; "
+                            "not adding --use-syn-sdc (syn_sdc_precheck)."
+                        ),
+                    }
+                )
 
         if not cfg.anat_only and cfg.missing_readout_timing_metadata():
             parts.append(f"--fallback-total-readout-time {cfg.fallback_total_readout_time}")
@@ -190,10 +212,13 @@ class ConfigAgent:
         logger.info("Rule-based command generated:\n%s", cmd)
         return cmd, fallbacks
 
-    def _llm_command(self, chain) -> str:
-        """Ask the LLM (with RAG context) to produce the Docker command."""
+    def _llm_command(self, chain, use_rag: bool = True) -> str:
+        """Ask the LLM (optionally with RAG context) to produce the Docker command."""
+        import hashlib
+
         cfg = self.cfg
         has_fmap = cfg.has_fieldmap()
+        syn_ok = cfg.should_enable_syn_sdc()
 
         query = f"""
 Context:
@@ -203,6 +228,8 @@ Context:
   PARTICIPANT       = {cfg.participant_id}
   SESSION           = {cfg.session_id or "none"}
   FIELDMAPS_FOUND   = {has_fmap}
+  SYN_SDC_ALLOWED   = {syn_ok}
+  PHASE_ENCODING_MISSING = {cfg.missing_phase_encoding_direction()}
   ANAT_ONLY         = {cfg.anat_only}
   SLOPPY_MODE       = {cfg.sloppy}
   LOW_MEM           = {cfg.low_mem}
@@ -214,46 +241,60 @@ TASK: Generate a single fMRIPrep Docker run command using the paths above.
 RULES:
   1. Use EXACTLY the paths given for the volume mounts.
   2. Output ONLY the bare shell command – no markdown fences, no explanation.
-  3. If FIELDMAPS_FOUND is False, add --use-syn-sdc.
-  4. If ANAT_ONLY is True, add --anat-only.
-  5. If SLOPPY_MODE is True, add --sloppy.
-  6. If LOW_MEM is True, add --low-mem and --mem_mb {cfg.mem_mb}.
-  7. If SESSION is not "none", add --session-label {cfg.session_id} (NOT --session-id).
+  3. Use "docker run --rm" (NO -i, -t, or -ti flags - this is for automated execution).
+  4. License mount must be: -v {cfg.license_file}:/opt/freesurfer/license.txt:ro (EXACTLY this path).
+  5. If SYN_SDC_ALLOWED is True, add --use-syn-sdc. If PHASE_ENCODING_MISSING is True, do NOT add --use-syn-sdc; add --ignore fieldmaps instead.
+  6. If ANAT_ONLY is True, add --anat-only.
+  7. If SLOPPY_MODE is True, add --sloppy.
+  8. If LOW_MEM is True, add --low-mem and --mem_mb {cfg.mem_mb}.
+  9. If SESSION is not "none", add --session-label {cfg.session_id} (NOT --session-id).
+  10. Always add --fs-no-reconall.
 """
-        # Prefer retriever+LLM so we can log source chunks for retrieval-precision analysis.
-        retriever = getattr(chain, "retriever", None)
-        if retriever is not None:
-            try:
-                docs = retriever.invoke(query) if hasattr(retriever, "invoke") else retriever.get_relevant_documents(query)
-                self._last_rag_chunks = [
-                    {
-                        "source": str(getattr(d, "metadata", {}).get("source", "")),
-                        "page": getattr(d, "metadata", {}).get("page"),
-                        "excerpt": (getattr(d, "page_content", "") or "")[:400],
-                    }
-                    for d in (docs or [])[:8]
-                ]
-            except Exception as exc:
-                logger.warning("Could not retrieve RAG chunks for metrics (%s).", exc)
+        self._last_llm_usage["prompt_hash"] = hashlib.sha256(query.encode("utf-8")).hexdigest()
+        self._last_llm_usage["model_name"] = cfg.llm_model
 
-        response = chain.invoke(query)
-        if isinstance(response, dict):
-            result = response.get("result", "")
-            source_docs = response.get("source_documents") or []
-            if source_docs and not self._last_rag_chunks:
-                self._last_rag_chunks = [
-                    {
-                        "source": str(getattr(d, "metadata", {}).get("source", "")),
-                        "page": getattr(d, "metadata", {}).get("page"),
-                        "excerpt": (getattr(d, "page_content", "") or "")[:400],
-                    }
-                    for d in source_docs[:8]
-                ]
-            # RetrievalQA may wrap the LLM message; try nested usage.
-            self._last_llm_usage = extract_llm_usage(response.get("raw") or response)
+        if use_rag and chain is not None:
+            retriever = getattr(chain, "retriever", None)
+            if retriever is not None:
+                try:
+                    docs = retriever.invoke(query) if hasattr(retriever, "invoke") else retriever.get_relevant_documents(query)
+                    k = cfg.retrieval_k
+                    self._last_rag_chunks = [
+                        {
+                            "source": str(getattr(d, "metadata", {}).get("source", "")),
+                            "page": getattr(d, "metadata", {}).get("page"),
+                            "excerpt": (getattr(d, "page_content", "") or "")[:400],
+                        }
+                        for d in (docs or [])[:k]
+                    ]
+                except Exception as exc:
+                    logger.warning("Could not retrieve RAG chunks for metrics (%s).", exc)
+
+            response = chain.invoke(query)
+            if isinstance(response, dict):
+                result = response.get("result", "")
+                source_docs = response.get("source_documents") or []
+                if source_docs and not self._last_rag_chunks:
+                    k = cfg.retrieval_k
+                    self._last_rag_chunks = [
+                        {
+                            "source": str(getattr(d, "metadata", {}).get("source", "")),
+                            "page": getattr(d, "metadata", {}).get("page"),
+                            "excerpt": (getattr(d, "page_content", "") or "")[:400],
+                        }
+                        for d in source_docs[:k]
+                    ]
+                self._last_llm_usage.update(extract_llm_usage(response.get("raw") or response))
+            else:
+                result = str(response)
+                self._last_llm_usage.update(extract_llm_usage(response))
         else:
-            result = str(response)
-            self._last_llm_usage = extract_llm_usage(response)
+            llm = self._build_llm()
+            if llm is None:
+                raise RuntimeError("LLM unavailable for no-RAG generation")
+            result_msg = llm.invoke(query)
+            result = result_msg.content if hasattr(result_msg, "content") else str(result_msg)
+            self._last_llm_usage.update(extract_llm_usage(result_msg))
 
         result = result.replace("```bash", "").replace("```sh", "").replace("```", "").strip()
         logger.info("LLM-generated command:\n%s", result)
@@ -298,7 +339,7 @@ RULES:
         self._qa_chain = RetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
-            retriever=vector_db.as_retriever(),
+            retriever=vector_db.as_retriever(search_kwargs={"k": self.cfg.retrieval_k}),
             return_source_documents=True,
         )
         return self._qa_chain
@@ -312,10 +353,13 @@ RULES:
         try:
             if provider == "groq":
                 from langchain_groq import ChatGroq
-                return ChatGroq(model_name=model, temperature=temp)
+                kwargs = {"model_name": model, "temperature": temp}
+                if self.cfg.llm_seed is not None:
+                    kwargs["model_kwargs"] = {"seed": int(self.cfg.llm_seed)}
+                return ChatGroq(**kwargs)
             elif provider == "openai":
                 from langchain_openai import ChatOpenAI
-                return ChatOpenAI(model_name=model, temperature=temp)
+                return ChatOpenAI(model_name=model, temperature=temp, seed=self.cfg.llm_seed)
             elif provider == "anthropic":
                 from langchain_anthropic import ChatAnthropic
                 return ChatAnthropic(model_name=model, temperature=temp)
@@ -370,17 +414,10 @@ RULES:
         official = self._load_official_flags()
         if not official:
             return []
-        # Allow common docker CLI flags that appear before the image entrypoint.
-        docker_ok = {"-v", "-e", "--rm", "--user", "-u", "--gpus", "-w", "-ti"}
-        # Temporarily allow --session-label until it's added to the official flags file
-        # Also allow --fs-license-file as an alternative license mounting approach
-        temporarily_allowed = {"--session-label", "--fs-license-file"}
-        unknown: list[str] = []
-        for stem in self._extract_flag_stems(command):
-            if stem in docker_ok or stem in temporarily_allowed:
-                continue
-            if stem not in official:
-                unknown.append(stem)
+        stems = extract_flag_stems(command)
+        unknown = unknown_fmriprep_flags(command, official)
+        # --session-label is accepted (fMRIPrep session filter); --session-id is a hallucination.
+        unknown = [u for u in unknown if u != "--session-label"]
         return unknown
 
     def _gold_standard_check(self, command: str) -> dict[str, Any]:

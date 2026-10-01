@@ -15,3 +15,17 @@ __pycache__/
 *.zip
 testing/results/
 __pycache__/
+__pycache__/
+*.pyc
+tmp/
+output/llm_smoke_test_*/
+__pycache__/
+*.pyc
+tmp/
+.pytest_cache/
+output/*
+!output/evaluation/
+output/evaluation/reports*/
+!output/figures/
+!output/metrics/
+*.pklz

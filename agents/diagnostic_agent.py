@@ -15,11 +15,13 @@ and LLM token usage when available.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 import time
 
 from config_loader import Config
+from diagnosis_evidence import evidence_pass, report_from_evidence, strip_benign_warnings
 from metrics_logger import emit, estimate_llm_cost_usd, extract_llm_usage
 
 logger = logging.getLogger(__name__)
@@ -29,13 +31,25 @@ logger = logging.getLogger(__name__)
 #  Each entry: (priority, regex_pattern, human_label, suggested_fixes)
 # --------------------------------------------------------------------------- #
 _HEURISTICS: list[tuple[int, str, str, list[str]]] = [
+    (110, r"(?i)(ANAT_CLIPPED_BRAIN|boundary.*clipping|brain.*clipped|cortex.*clipped|over-stripped|skull_strip_reduction.*high|brain_mask.*boundary)",
+     "Anatomical clipping / brain over-stripped",
+     ["--skull-strip-template OASIS30ANTs", "--skull-strip-fixed-seed", "--fs-no-reconall"]),
+
+    (105, r"(?i)(ANAT_OVERSEGMENTATION|skull.*retained|dura.*retained|under-stripped|skull_strip_reduction.*low)",
+     "Anatomical under-stripping / non-brain tissue retained",
+     ["--skull-strip-template OASIS30ANTs", "--skull-strip-fixed-seed"]),
+
     (100, r"(?i)(Missing readout time information|Unknown total-readout time specification|missing.*TotalReadoutTime)",
      "Missing readout timing metadata",
      ["--fallback-total-readout-time", "add TotalReadoutTime or EffectiveEchoSpacing metadata"]),
 
-    (95, r"(?i)(out of memory|oom|exit code 137|killed)",
+    (95, r"(?i)(out of memory|oom-?killer|exit code 137|Process killed with exit code 137)",
      "OUT-OF-MEMORY crash",
      ["--low-mem", "--mem_mb", "--nprocs 1"]),
+
+    (92, r"(?i)(the input device is not a TTY|pseudo-tty)",
+     "Docker TTY / pseudo-tty error",
+     ["remove -t/-i/-ti from docker run"]),
 
     (90, r"(?i)(repetition.?time|RepetitionTime|missing.*TR|TR.*missing)",
      "Missing RepetitionTime in BIDS metadata",
@@ -49,9 +63,17 @@ _HEURISTICS: list[tuple[int, str, str, list[str]]] = [
      "Fieldmap / distortion-correction error",
      ["--use-syn-sdc", "--ignore fieldmaps"]),
 
-    (70, r"(?i)(no such file.*license|license.*not found|license file .* not found|freesurfer license)",
+    (75, r"(?i)(FREESURFER_SURFACE_FAILURE|recon-all.*failed|surface.*defect|euler.*number|topology.*error)",
+     "FreeSurfer surface reconstruction failure",
+     ["--fs-no-reconall"]),
+
+    (72, r"(?i)(MNI_REGISTRATION_DISTORTION|normalization.*failed|registration.*distortion|MNI.*misalignment)",
+     "MNI spatial normalization distortion or failure",
+     ["--output-spaces MNI152NLin2009cAsym:res-2"]),
+
+    (70, r"(?i)(no such file.*license|license.*not found|license file .* not found|valid license file is required|freesurfer license)",
      "FreeSurfer license or binary missing",
-     ["--fs-no-reconall", "verify license.txt path"]),
+     ["verify license.txt path", "--fs-no-reconall"]),
 
     (60, r"(?i)(naming conflict|already exists|FileExists|file.*exist)",
      "Output filesystem naming conflict",
@@ -101,6 +123,8 @@ class DiagnosticAgent:
         detection_method = "none"
         llm_usage: dict = {}
         report = "No error log captured. Cannot diagnose."
+        prompt_hash = ""
+        evidence: dict = {}
 
         if not error_log or not error_log.strip():
             elapsed = time.perf_counter() - t0
@@ -115,21 +139,42 @@ class DiagnosticAgent:
             )
             return report
 
-        # Prefer heuristics first for deterministic eval metrics; still try LLM
-        # when available and record which path produced the returned report.
-        # Historical behaviour: try LLM first, fall back to heuristics.
-        try:
-            llm = self._get_llm()
-            if llm is not None:
-                report, llm_usage = self._llm_diagnose(llm, error_log)
-                detection_method = "llm_fallback"
-            else:
-                report = self._heuristic_diagnose(error_log)
-                detection_method = "regex_heuristic"
-        except Exception as exc:
-            logger.warning("LLM diagnosis failed (%s) – falling back to heuristics.", exc)
-            report = self._heuristic_diagnose(error_log)
+        evidence = evidence_pass(error_log)
+        filtered_log = evidence.get("filtered_log") or strip_benign_warnings(error_log)
+        evidence_report = report_from_evidence(evidence, excerpt=filtered_log[:400])
+        mode = (self.cfg.diagnosis_mode or "regex_llm_fallback").strip()
+
+        if evidence_report and mode != "llm_only":
+            report = evidence_report
+            detection_method = "deterministic_evidence_pass"
+        elif mode == "regex_only":
+            report = self._heuristic_diagnose(filtered_log)
             detection_method = "regex_heuristic"
+        elif mode == "llm_only":
+            try:
+                llm = self._get_llm()
+                if llm is not None:
+                    report, llm_usage, prompt_hash = self._llm_diagnose(llm, filtered_log)
+                    detection_method = "llm_only"
+                else:
+                    report = self._heuristic_diagnose(filtered_log)
+                    detection_method = "regex_heuristic"
+            except Exception as exc:
+                logger.warning("LLM diagnosis failed (%s) – falling back to heuristics.", exc)
+                report = self._heuristic_diagnose(filtered_log)
+                detection_method = "regex_heuristic"
+        else:
+            # regex_llm_fallback: evidence already handled; try regex then LLM if unknown
+            report = self._heuristic_diagnose(filtered_log)
+            detection_method = "regex_heuristic"
+            if "Unknown – no recognised pattern" in report:
+                try:
+                    llm = self._get_llm()
+                    if llm is not None:
+                        report, llm_usage, prompt_hash = self._llm_diagnose(llm, filtered_log)
+                        detection_method = "llm_fallback"
+                except Exception as exc:
+                    logger.warning("LLM diagnosis failed (%s) – keeping heuristics.", exc)
 
         root_cause = self._parse_root_cause(report)
         elapsed = time.perf_counter() - t0
@@ -142,13 +187,19 @@ class DiagnosticAgent:
         emit(
             "diagnostic_agent",
             "diagnosis_completed",
-            log_excerpt=(error_log or "")[:2000],
+            log_excerpt=(filtered_log or "")[:2000],
             root_cause=root_cause,
             detection_method=detection_method,
             duration_seconds=round(elapsed, 4),
             report=report,
             llm_usage=llm_usage,
             llm_cost_usd_estimate=cost,
+            evidence_findings=evidence.get("findings"),
+            prompt_hash=prompt_hash,
+            model_name=self.cfg.llm_model,
+            model_provider=self.cfg.llm_provider,
+            temperature=self.cfg.llm_temperature,
+            llm_seed=self.cfg.llm_seed,
         )
         return report
 
@@ -159,36 +210,39 @@ class DiagnosticAgent:
     @staticmethod
     def _parse_root_cause(report: str) -> str:
         for line in (report or "").splitlines():
-            if line.startswith("ROOT CAUSE:"):
-                return line.replace("ROOT CAUSE:", "", 1).strip()
+            stripped = line.strip().lstrip("#").lstrip("*").strip()
+            if stripped.upper().startswith("ROOT CAUSE:"):
+                return stripped.split(":", 1)[1].strip()
         return (report or "").splitlines()[0] if report else ""
 
-    def _llm_diagnose(self, llm, error_log: str) -> tuple[str, dict]:
+    def _llm_diagnose(self, llm, error_log: str) -> tuple[str, dict, str]:
         from langchain_core.prompts import ChatPromptTemplate
 
-        template = ChatPromptTemplate.from_messages([
-            (
-                "system",
-                (
+        system = (
                     "You are an expert Neuroimaging Data Engineer specialising in "
-                    "fMRIPrep, FreeSurfer, and Docker. "
-                    "Your task is to analyse an error log and return a structured "
-                    "diagnosis in the following format:\n\n"
-                    "ROOT CAUSE: <one sentence>\n"
-                    "EVIDENCE: <quoted snippet from log>\n"
+                    "fMRIPrep, FreeSurfer, Docker, and Automated Image Quality Assurance. "
+                    "Your task is to analyse an execution error log or Visual/Anatomical QA failure report "
+                    "and return a structured diagnosis in the following format:\n\n"
+                    "ROOT CAUSE: <one sentence, e.g. Anatomical clipping / brain over-stripped, Missing readout timing, etc.>\n"
+                    "EVIDENCE: <quoted snippet from log or QA report>\n"
                     "RECOMMENDED FIXES:\n"
-                    "  1. <fix>\n"
+                    "  1. <fix, e.g. --skull-strip-template OASIS30ANTs, --fs-no-reconall, --fallback-total-readout-time, etc.>\n"
                     "  2. <fix (if applicable)>\n"
                     "SEVERITY: LOW | MEDIUM | HIGH"
-                ),
-            ),
-            ("user", "Error log:\n{log_text}"),
+        )
+        template = ChatPromptTemplate.from_messages([
+            ("system", system),
+            ("user", "Execution log / QA Failure Report:\n{log_text}"),
         ])
+        payload = {"log_text": error_log[:6000]}
+        prompt_hash = hashlib.sha256((system + payload["log_text"]).encode("utf-8")).hexdigest()
         chain = template | llm
-        result = chain.invoke({"log_text": error_log[:6000]})  # trim very long logs
+        result = chain.invoke(payload)
         usage = extract_llm_usage(result)
+        usage["prompt_hash"] = prompt_hash
+        usage["model_name"] = usage.get("model_name") or self.cfg.llm_model
         text = result.content if hasattr(result, "content") else str(result)
-        return text, usage
+        return text, usage, prompt_hash
 
     def _heuristic_diagnose(self, error_log: str) -> str:
         best_match: tuple[int, str, list[str], str] | None = None
@@ -232,10 +286,13 @@ class DiagnosticAgent:
         try:
             if provider == "groq":
                 from langchain_groq import ChatGroq
-                self._llm = ChatGroq(model_name=model, temperature=temp)
+                kwargs = {"model_name": model, "temperature": temp}
+                if self.cfg.llm_seed is not None:
+                    kwargs["model_kwargs"] = {"seed": int(self.cfg.llm_seed)}
+                self._llm = ChatGroq(**kwargs)
             elif provider == "openai":
                 from langchain_openai import ChatOpenAI
-                self._llm = ChatOpenAI(model_name=model, temperature=temp)
+                self._llm = ChatOpenAI(model_name=model, temperature=temp, seed=self.cfg.llm_seed)
             elif provider == "anthropic":
                 from langchain_anthropic import ChatAnthropic
                 self._llm = ChatAnthropic(model_name=model, temperature=temp)

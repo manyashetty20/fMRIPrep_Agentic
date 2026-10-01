@@ -52,10 +52,17 @@ agents:
 qa:
   threshold_preset: custom
   literature_reference_note: ""
+  retry_on_qa_fail: true                 # Close the loop: retry if QA verdict is FAIL
+  check_boundary_clipping: true          # Check if brain mask touches volume boundary slices
+  max_boundary_slice_fraction: 0.02      # >2% voxels on edge slice indicates clipping
   min_brain_mask_retention_ratio: 0.05   # 5% — brain mask should be at least 5% of preprocessed volume
   max_brain_mask_retention_ratio: 0.25   # 25% — shouldn't exceed 25% 
   min_skull_strip_reduction: 0.75        # 75% — at least 75% of preprocessed volume should be non-brain
   max_skull_strip_reduction: 0.95        # 95% — skull strip shouldn't remove more than 95%
+  skull_strip_templates:
+    - "OASIS30ANTs"
+    - "NKI"
+    - "MNI152NLin2009cAsym"
 
 # --- Evaluation / metrics (paper-facing; keep values here, not buried in agents) ---
 evaluation:

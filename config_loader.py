@@ -56,27 +56,44 @@ _DEFAULTS: dict[str, Any] = {
     "agents.recovery_enabled":      True,
     "agents.diagnosis_enabled":     True,
     "agents.vision_enabled":        True,
+    "agents.diagnosis_mode":        "regex_llm_fallback",  # regex_only | llm_only | regex_llm_fallback
+    "agents.config_generation_mode": "rule_only",  # rule_only | rag | no_rag
+    "agents.retrieval_k":           4,
+    "agents.rule_gate_enabled":     True,  # never execute free-text LLM repairs
+    "agents.repair_dry_run":        False,  # A4: validate LLM flags, do not apply
+    "agents.llm_seed":              0,
+    "agents.syn_sdc_precheck":      True,  # do not add --use-syn-sdc when PED is missing
 
     "qa.threshold_preset":                 "custom",
     "qa.literature_reference_note":        "",
+    "qa.retry_on_qa_fail":                 True,
+    "qa.check_boundary_clipping":          True,
+    "qa.max_boundary_slice_fraction":      0.02,
     "qa.min_brain_mask_retention_ratio": 0.70,
     "qa.max_brain_mask_retention_ratio": 0.995,
     "qa.min_skull_strip_reduction":      0.005,
     "qa.max_skull_strip_reduction":      0.30,
+    "qa.skull_strip_templates":          ["OASIS30ANTs", "NKI", "MNI152NLin2009cAsym"],
 
     "evaluation.metrics_dir": "./output/metrics",
     "evaluation.gold_standard_file": "./testing/fixtures/gold_standard_commands.yaml",
     "evaluation.official_flags_file": "./data/fmriprep_cli_flags.txt",
     "evaluation.failure_injection_modes": [
         "missing_tr",
+        "missing_total_readout_time",
+        "missing_phase_encoding",
+        "fieldmap_inconsistency",
+        "oom",
+        "missing_fs_license",
+        "tty_error",
+        "fs_naming_conflict",
         "bad_readout",
         "missing_fmap",
         "strip_phase_encoding",
         "malformed_json",
         "truncate_json",
-        "oom",
     ],
-    "evaluation.default_injection_trials": 3,
+    "evaluation.default_injection_trials": 10,
     "evaluation.llm_cost_per_million_input_tokens": 0.59,
     "evaluation.llm_cost_per_million_output_tokens": 0.79,
 
@@ -126,6 +143,8 @@ _ENV_MAP: dict[str, str] = {
     "FMRIPREP_RECOVERY_ENABLED":   "agents.recovery_enabled",
     "FMRIPREP_DIAGNOSIS_ENABLED":  "agents.diagnosis_enabled",
     "FMRIPREP_VISION_ENABLED":     "agents.vision_enabled",
+    "FMRIPREP_RETRY_ON_QA_FAIL":   "qa.retry_on_qa_fail",
+    "FMRIPREP_CHECK_BOUNDARY_CLIPPING": "qa.check_boundary_clipping",
     "GROQ_MODEL":              "llm.model_name",
     "LOG_LEVEL":               "logging.level",
 }
@@ -332,6 +351,34 @@ class Config:
         return bool(self._cfg.get("agents.vision_enabled", True))
 
     @property
+    def diagnosis_mode(self) -> str:
+        return str(self._cfg.get("agents.diagnosis_mode", "regex_llm_fallback"))
+
+    @property
+    def config_generation_mode(self) -> str:
+        return str(self._cfg.get("agents.config_generation_mode", "rule_only"))
+
+    @property
+    def retrieval_k(self) -> int:
+        return int(self._cfg.get("agents.retrieval_k", 4))
+
+    @property
+    def rule_gate_enabled(self) -> bool:
+        return bool(self._cfg.get("agents.rule_gate_enabled", True))
+
+    @property
+    def repair_dry_run(self) -> bool:
+        return bool(self._cfg.get("agents.repair_dry_run", False))
+
+    @property
+    def llm_seed(self) -> int:
+        return int(self._cfg.get("agents.llm_seed", 0))
+
+    @property
+    def syn_sdc_precheck(self) -> bool:
+        return bool(self._cfg.get("agents.syn_sdc_precheck", True))
+
+    @property
     def qa_threshold_preset(self) -> str:
         return str(self._cfg.get("qa.threshold_preset", "custom"))
 
@@ -342,6 +389,23 @@ class Config:
             return str(note).strip()
         preset = self.qa_threshold_preset
         return _QA_PRESET_REFERENCE_NOTES.get(preset, "")
+
+    @property
+    def retry_on_qa_fail(self) -> bool:
+        return bool(self._cfg.get("qa.retry_on_qa_fail", True))
+
+    @property
+    def check_boundary_clipping(self) -> bool:
+        return bool(self._cfg.get("qa.check_boundary_clipping", True))
+
+    @property
+    def max_boundary_slice_fraction(self) -> float:
+        return float(self._cfg.get("qa.max_boundary_slice_fraction", 0.02))
+
+    @property
+    def skull_strip_templates(self) -> list[str]:
+        raw = self._cfg.get("qa.skull_strip_templates") or ["OASIS30ANTs", "NKI", "MNI152NLin2009cAsym"]
+        return [str(x) for x in raw]
 
     @property
     def min_brain_mask_retention_ratio(self) -> float:
@@ -392,16 +456,53 @@ class Config:
     #  Helpers
     # ---------------------------------------------------------------------- #
 
+    def _subject_dir(self) -> Path:
+        return self.bids_dir / self.participant_id
+
     def has_fieldmap(self) -> bool:
-        """Check whether fieldmap data exists for the configured participant."""
-        fmap_path = self.bids_dir / self.participant_id / "fmap"
-        return fmap_path.exists() and fmap_path.is_dir() and any(fmap_path.iterdir())
+        """Check whether fieldmap data exists for the configured participant (flat or ses-*)."""
+        subject = self._subject_dir()
+        candidates = [subject / "fmap", *sorted(subject.glob("ses-*/fmap"))]
+        for fmap_path in candidates:
+            if fmap_path.exists() and fmap_path.is_dir() and any(fmap_path.iterdir()):
+                return True
+        return False
 
     def func_metadata_files(self) -> list[Path]:
-        func_dir = self.bids_dir / self.participant_id / "func"
-        if not func_dir.exists():
-            return []
-        return sorted(func_dir.glob("*_bold.json"))
+        subject = self._subject_dir()
+        files: list[Path] = []
+        flat = subject / "func"
+        if flat.exists():
+            files.extend(sorted(flat.glob("*_bold.json")))
+        for func_dir in sorted(subject.glob("ses-*/func")):
+            files.extend(sorted(func_dir.glob("*_bold.json")))
+        return files
+
+    def missing_phase_encoding_direction(self) -> bool:
+        """True when at least one BOLD sidecar exists and lacks PhaseEncodingDirection."""
+        files = self.func_metadata_files()
+        if not files:
+            return False
+        for json_file in files:
+            try:
+                with open(json_file, "r") as f:
+                    metadata = yaml.safe_load(f) or {}
+            except Exception:
+                return True
+            if metadata.get("PhaseEncodingDirection") in (None, ""):
+                return True
+        return False
+
+    def should_enable_syn_sdc(self) -> bool:
+        """
+        Enable fieldmap-less SyN only when there is no fieldmap AND every BOLD
+        sidecar has PhaseEncodingDirection (required by SyN SDC).
+        """
+        if self.has_fieldmap():
+            return False
+        if self.syn_sdc_precheck and self.missing_phase_encoding_direction():
+            return False
+        return not self.has_fieldmap()
 
     def missing_readout_timing_metadata(self) -> bool:
         """

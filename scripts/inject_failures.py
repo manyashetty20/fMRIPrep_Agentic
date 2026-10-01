@@ -37,11 +37,17 @@ if str(_PROJECT_ROOT) not in sys.path:
 from bids_discovery import list_bids_participants
 
 FAILURE_MODES = frozenset({
-    "oom",
     "missing_tr",
-    "missing_fmap",
     "bad_readout",
+    "missing_total_readout_time",
     "strip_phase_encoding",
+    "missing_phase_encoding",
+    "fieldmap_inconsistency",
+    "missing_fmap",
+    "oom",
+    "missing_fs_license",
+    "docker_tty_issue",
+    "fs_naming_conflict",
     "malformed_json",
     "truncate_json",
 })
@@ -68,6 +74,12 @@ def parse_args() -> argparse.Namespace:
         "--participant",
         default=None,
         help="Limit sidecar edits to this subject (sub-XX). Default: first subject with func data.",
+    )
+    p.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducible trial injection (default: 42).",
     )
     return p.parse_args()
 
@@ -217,15 +229,6 @@ def main() -> None:
         print(f"❌ bids-dir is not a directory: {src}", file=sys.stderr)
         sys.exit(1)
 
-    if args.mode == "oom":
-        print(
-            "Mode `oom` does not modify BIDS files. For a repeatable OOM-style failure with the mock shim:\n"
-            "  export FMRIPREP_MOCK_FORCE_EXIT137=1\n"
-            "  # ensure PATH uses scripts/mock_docker.py as `docker` (see scripts/run_full_agent_smoke.py)\n"
-            "  python main.py --bids-dir ... --output-dir ... --participant ...\n"
-        )
-        return
-
     if dst.exists():
         print(f"❌ work-dir already exists: {dst}", file=sys.stderr)
         sys.exit(1)
@@ -239,23 +242,24 @@ def main() -> None:
         manifest: dict = {
             "mode": args.mode,
             "participant": sub,
+            "seed": args.seed,
             "source_bids": str(src),
             "mutated_bids": str(dst),
         }
 
-        if args.mode == "missing_tr":
+        if args.mode in ("missing_tr",):
             sidecars = _pick_all_bold_jsons(subject_dir)
             for j in sidecars:
                 _strip_keys(j, {"RepetitionTime"})
             manifest["edited_sidecars"] = [str(p) for p in sidecars]
 
-        elif args.mode == "bad_readout":
+        elif args.mode in ("bad_readout", "missing_total_readout_time"):
             sidecars = _pick_all_bold_jsons(subject_dir)
             for j in sidecars:
                 _strip_keys(j, {"TotalReadoutTime", "EffectiveEchoSpacing"})
             manifest["edited_sidecars"] = [str(p) for p in sidecars]
 
-        elif args.mode == "missing_fmap":
+        elif args.mode in ("missing_fmap",):
             fmap_dirs = _resolve_fmap_dirs(subject_dir)
             if not fmap_dirs:
                 raise FileNotFoundError(f"No fmap directory to hide under {subject_dir} (flat fmap/ or ses-*/fmap/).")
@@ -264,11 +268,48 @@ def main() -> None:
             target_fmap.rename(hidden)
             manifest["hidden_fieldmap_dir"] = str(hidden)
 
-        elif args.mode == "strip_phase_encoding":
+        elif args.mode in ("fieldmap_inconsistency",):
+            fmap_dirs = _resolve_fmap_dirs(subject_dir)
+            if fmap_dirs:
+                target_fmap = fmap_dirs[0]
+                for fmap_json in target_fmap.glob("*.json"):
+                    try:
+                        data = json.loads(fmap_json.read_text())
+                        data["IntendedFor"] = ["nonexistent_run_bold.nii.gz"]
+                        fmap_json.write_text(json.dumps(data, indent=2))
+                    except Exception:
+                        pass
+                manifest["fieldmap_inconsistency"] = "corrupted_intended_for"
+            else:
+                # If no fmap dir exists, create an inconsistent mock fmap
+                mock_fmap = subject_dir / "fmap"
+                mock_fmap.mkdir(parents=True, exist_ok=True)
+                (mock_fmap / f"{sub}_phasediff.json").write_text(
+                    json.dumps({"EchoTime1": 0.00492, "IntendedFor": "inconsistent"}, indent=2)
+                )
+                manifest["fieldmap_inconsistency"] = "mock_inconsistent_fmap"
+
+        elif args.mode in ("strip_phase_encoding", "missing_phase_encoding"):
             sidecars = _pick_all_bold_jsons(subject_dir)
             for j in sidecars:
                 _strip_keys(j, {"PhaseEncodingDirection"})
             manifest["edited_sidecars"] = [str(p) for p in sidecars]
+
+        elif args.mode == "oom":
+            manifest["oom_simulated"] = True
+
+        elif args.mode == "missing_fs_license":
+            manifest["missing_fs_license"] = True
+
+        elif args.mode == "docker_tty_issue":
+            manifest["docker_tty_issue"] = True
+
+        elif args.mode == "fs_naming_conflict":
+            manifest["fs_naming_conflict"] = True
+            # Create a conflicting dummy file in the subject directory
+            conflict_dir = subject_dir / "sourcedata" / "freesurfer"
+            conflict_dir.mkdir(parents=True, exist_ok=True)
+            (conflict_dir / "naming_conflict_flag.txt").write_text("conflict")
 
         elif args.mode == "malformed_json":
             sidecar = _pick_bold_json(subject_dir)

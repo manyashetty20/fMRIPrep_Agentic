@@ -34,6 +34,7 @@ from agents.config_agent import ConfigAgent
 from agents.diagnostic_agent import DiagnosticAgent
 from agents.recovery_agent import RecoveryAgent
 from metrics_logger import emit
+from qa_verdict import decide_qa_verdict
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,8 @@ class AgentState(TypedDict):
     status:           str
     attempt_count:    int   # tracks recovery iterations
     recovery_changed: bool
+    qa_verdict:       str   # PASS / WARN / FAIL / SKIPPED / NONE
+    applied_repair_rule_ids: List[str]
 
 
 # --------------------------------------------------------------------------- #
@@ -177,6 +180,7 @@ def build_graph(cfg: Config) -> object:
             "status": "executing",
             "attempt_count": 0,
             "recovery_changed": True,
+            "applied_repair_rule_ids": [],
             "events": [{
                 "type": "planning",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -366,9 +370,15 @@ def build_graph(cfg: Config) -> object:
         logger.info("--- [GRAPH] Recovery Phase ---")
         latest_diagnosis = state["history"][-1] if state["history"] else ""
         attempt = state.get("attempt_count", 0)
+        already = list(state.get("applied_repair_rule_ids") or [])
         new_cmd = recovery_agent.apply_fix(
-            state["command"], latest_diagnosis, retry_attempt=attempt
+            state["command"],
+            latest_diagnosis,
+            retry_attempt=attempt,
+            already_applied=already,
         )
+        newly = list(recovery_agent.last_applied or [])
+        merged_ids = list(dict.fromkeys(already + newly))
         logger.info("Recovered command:\n%s", new_cmd)
         changed = _tokenize_command(new_cmd) != _tokenize_command(state["command"])
         bids_data_fix = bool(re.search(r"(?i)(BIDS_FIX|RepetitionTime|missing.*TR)", latest_diagnosis))
@@ -386,12 +396,14 @@ def build_graph(cfg: Config) -> object:
                 "status": "unrecoverable",
                 "history": ["RECOVERY: no effective command change was possible."],
                 "recovery_changed": False,
+                "applied_repair_rule_ids": merged_ids,
                 "events": [{
                     "type": "recovery",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "attempt": attempt,
                     "changed": False,
                     "command": new_cmd,
+                    "repair_rule_ids": newly,
                 }],
             }
         elif not changed and bids_data_fix:
@@ -408,12 +420,15 @@ def build_graph(cfg: Config) -> object:
             "command": new_cmd,
             "status": "executing",
             "recovery_changed": True,
+            "applied_repair_rule_ids": merged_ids,
             "events": [{
                 "type": "recovery",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "attempt": attempt,
                 "changed": True,
                 "command": new_cmd,
+                "repair_rule_ids": newly,
+                "scientific_impacts": list(recovery_agent.last_impacts or []),
             }],
         }
 
@@ -528,13 +543,29 @@ def build_graph(cfg: Config) -> object:
                 raw_nonzero  = int(np.count_nonzero(raw))
                 proc_nonzero = int(np.count_nonzero(proc))
                 mask_nonzero = None
+                edge_fraction = 0.0
                 if brain_mask.exists():
-                    mask = nib.load(str(brain_mask)).get_fdata()
-                    mask_nonzero = int(np.count_nonzero(mask))
+                    mask_obj = nib.load(str(brain_mask))
+                    mask_data = mask_obj.get_fdata()
+                    mask_nonzero = int(np.count_nonzero(mask_data))
+                    
+                    # Boundary clipping check: detect if brain mask is clipped at FOV edges
+                    if cfg.check_boundary_clipping and mask_nonzero > 0:
+                        mask_bool = mask_data > 0
+                        edge_voxels = int(
+                            np.count_nonzero(mask_bool[0, :, :]) +
+                            np.count_nonzero(mask_bool[-1, :, :]) +
+                            np.count_nonzero(mask_bool[:, 0, :]) +
+                            np.count_nonzero(mask_bool[:, -1, :]) +
+                            np.count_nonzero(mask_bool[:, :, 0]) +
+                            np.count_nonzero(mask_bool[:, :, -1])
+                        )
+                        edge_fraction = float(edge_voxels / mask_nonzero)
 
                 kept_nonzero = mask_nonzero if mask_nonzero is not None else proc_nonzero
                 retention_ratio = kept_nonzero / max(proc_nonzero, 1)
                 reduction = 1.0 - kept_nonzero / max(proc_nonzero, 1)
+
                 qa_checks = [
                     {
                         "name": "output_found",
@@ -574,12 +605,12 @@ def build_graph(cfg: Config) -> object:
                         "status": (
                             "pass"
                             if cfg.min_brain_mask_retention_ratio <= retention_ratio <= cfg.max_brain_mask_retention_ratio
-                            else "warn"
+                            else "fail"
                         ),
                         "reason": (
                             "Mask-vs-preprocessed retention ratio is inside the configured QA band."
                             if cfg.min_brain_mask_retention_ratio <= retention_ratio <= cfg.max_brain_mask_retention_ratio
-                            else "Mask-vs-preprocessed retention ratio falls outside the configured QA band."
+                            else f"Mask-vs-preprocessed retention ratio ({retention_ratio:.1%}) falls outside configured band [{cfg.min_brain_mask_retention_ratio:.1%}, {cfg.max_brain_mask_retention_ratio:.1%}]."
                         ),
                     },
                     {
@@ -592,15 +623,64 @@ def build_graph(cfg: Config) -> object:
                         "status": (
                             "pass"
                             if cfg.min_skull_strip_reduction <= reduction <= cfg.max_skull_strip_reduction
-                            else "warn"
+                            else "fail"
                         ),
                         "reason": (
                             "Mask-vs-preprocessed voxel reduction is inside the configured QA band."
                             if cfg.min_skull_strip_reduction <= reduction <= cfg.max_skull_strip_reduction
-                            else "Mask-vs-preprocessed voxel reduction falls outside the configured QA band."
+                            else f"Mask-vs-preprocessed voxel reduction ({reduction:.1%}) falls outside configured band [{cfg.min_skull_strip_reduction:.1%}, {cfg.max_skull_strip_reduction:.1%}]."
                         ),
                     },
                 ]
+
+                # Boundary clipping check
+                if cfg.check_boundary_clipping and mask_nonzero is not None:
+                    is_clipped = edge_fraction > cfg.max_boundary_slice_fraction
+                    qa_checks.append({
+                        "name": "boundary_clipping",
+                        "value": edge_fraction,
+                        "threshold": {"max": cfg.max_boundary_slice_fraction},
+                        "status": "fail" if is_clipped else "pass",
+                        "reason": (
+                            f"Brain mask touches FOV boundary slices ({edge_fraction:.2%} > {cfg.max_boundary_slice_fraction:.2%}), indicating potential cortex clipping or truncated scan FOV."
+                            if is_clipped
+                            else f"Brain mask is fully contained within FOV boundaries ({edge_fraction:.2%} edge voxels)."
+                        ),
+                    })
+
+                # Tissue segmentation check (if available)
+                dseg_candidates = [
+                    subject_output_dir / "anat" / f"{cfg.participant_id}_dseg.nii.gz",
+                    subject_output_dir / "anat" / f"{cfg.participant_id}_desc-aseg_dseg.nii.gz",
+                ]
+                dseg_found = any(p.exists() for p in dseg_candidates)
+                if dseg_found:
+                    qa_checks.append({
+                        "name": "tissue_segmentation",
+                        "value": True,
+                        "threshold": True,
+                        "status": "pass",
+                        "reason": "Anatomical tissue segmentation derivative verified.",
+                    })
+
+                # SVG figure checks
+                fig_dirs = [
+                    subject_output_dir / "figures",
+                    cfg.output_dir / "fmriprep" / cfg.participant_id / "figures",
+                ]
+                svg_files = []
+                for fd in fig_dirs:
+                    if fd.exists():
+                        svg_files.extend(list(fd.glob("*.svg")))
+                if svg_files:
+                    qa_checks.append({
+                        "name": "figures_generated",
+                        "value": len(svg_files),
+                        "threshold": 1,
+                        "status": "pass",
+                        "reason": f"Found {len(svg_files)} visual QA figure(s) for audit.",
+                    })
+
                 fail_count = sum(1 for check in qa_checks if check["status"] == "fail")
                 warn_count = sum(1 for check in qa_checks if check["status"] == "warn")
                 qa_summary = "FAIL" if fail_count else ("WARN" if warn_count else "PASS")
@@ -608,6 +688,7 @@ def build_graph(cfg: Config) -> object:
                     "raw_nonzero_voxels": raw_nonzero,
                     "preprocessed_nonzero_voxels": proc_nonzero,
                     "brain_mask_nonzero_voxels": mask_nonzero,
+                    "boundary_edge_fraction": edge_fraction,
                     "skull_strip_reduction": reduction,
                     "brain_mask_retention_ratio": retention_ratio,
                     "qa_summary": qa_summary,
@@ -628,6 +709,7 @@ def build_graph(cfg: Config) -> object:
                     ),
                     f"  Brain-mask retention ratio  : {retention_ratio:.1%}",
                     f"  Skull-strip reduction       : {reduction:.1%}",
+                    f"  Boundary edge voxel ratio   : {edge_fraction:.2%}",
                     (
                         "  Skull-stripping : change detected between raw volume and brain mask."
                         if reduction > 0
@@ -644,10 +726,12 @@ def build_graph(cfg: Config) -> object:
                 report_lines.append("  nibabel not installed – skipping voxel-level QA.")
                 metrics["status"] = "partial"
                 metrics["reason"] = "nibabel_missing"
+                qa_summary = "WARN"
             except Exception as exc:
                 report_lines.append(f"  QA error: {exc}")
                 metrics["status"] = "partial"
                 metrics["reason"] = str(exc)
+                qa_summary = "WARN"
 
         report = "\n".join(report_lines)
         _persist_qa_results(report, metrics)
@@ -671,27 +755,80 @@ def build_graph(cfg: Config) -> object:
                 else None
             ),
             mni_normalization_success=bool(metrics.get("mni_found")),
-            qa_verdict=metrics.get("qa_summary"),
+            qa_verdict=metrics.get("qa_summary", "UNKNOWN"),
             thresholds_used=thresholds,
             report_found=metrics.get("report_found"),
             output_found=metrics.get("output_found"),
             brain_mask_found=metrics.get("brain_mask_found"),
         )
+
+        qa_summary_verdict = metrics.get("qa_summary", "PASS")
+        attempt = state.get("attempt_count", 0)
+
+        # Build QA diagnosis log text if QA checks failed
+        qa_log = state.get("log", "")
+        if qa_summary_verdict == "FAIL":
+            failed_checks = [c for c in metrics.get("qa_decision", {}).get("checks", []) if c.get("status") == "fail"]
+            failed_names = [c.get("name") for c in failed_checks]
+            
+            if "boundary_clipping" in failed_names or "brain_mask_retention_ratio" in failed_names:
+                root_cause = "ANAT_CLIPPED_BRAIN"
+                fix_hint = "--skull-strip-template OASIS30ANTs, --skull-strip-fixed-seed, --fs-no-reconall"
+            elif "skull_strip_reduction" in failed_names:
+                root_cause = "ANAT_OVERSEGMENTATION"
+                fix_hint = "--skull-strip-template OASIS30ANTs, --skull-strip-fixed-seed"
+            elif "mni_found" in failed_names:
+                root_cause = "MNI_REGISTRATION_DISTORTION"
+                fix_hint = "--output-spaces MNI152NLin2009cAsym:res-2"
+            else:
+                root_cause = "ANAT_CLIPPED_BRAIN"
+                fix_hint = "--skull-strip-template OASIS30ANTs"
+
+            evidence_items = [f"{c.get('name')}: {c.get('reason')}" for c in failed_checks]
+            qa_log = (
+                f"ROOT CAUSE: {root_cause}\n"
+                f"EVIDENCE: QA audit failed ({len(failed_checks)} failure(s)):\n"
+                + "\n".join(f"  - {e}" for e in evidence_items) + "\n"
+                f"RECOMMENDED FIXES:\n"
+                f"  1. {fix_hint}\n"
+                f"SEVERITY: HIGH"
+            )
+
+        if (
+            qa_summary_verdict == "FAIL"
+            and cfg.retry_on_qa_fail
+            and cfg.recovery_enabled
+            and attempt < cfg.max_recovery_attempts
+        ):
+            new_status = "qa_failed"
+            logger.warning(
+                "QA detected anatomical failure (%s). Triggering recovery attempt %d/%d.",
+                qa_summary_verdict,
+                attempt,
+                cfg.max_recovery_attempts,
+            )
+        else:
+            new_status = "completed"
+
         emit(
             "orchestrator",
             "state_transition",
             from_state=state.get("status", "success"),
-            to_state="qa_complete",
-            attempt_count=state.get("attempt_count", 0),
-            final_verdict=metrics.get("qa_summary"),
+            to_state="qa_complete" if new_status == "completed" else "diagnosing_qa",
+            attempt_count=attempt,
+            final_verdict=qa_summary_verdict,
         )
+
         return {
             "history": [report],
-            "status": "completed",
+            "log": qa_log if qa_summary_verdict == "FAIL" else state.get("log", ""),
+            "status": new_status,
+            "qa_verdict": qa_summary_verdict,
             "events": [{
                 "type": "qa",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "status": metrics.get("status", "completed"),
+                "qa_verdict": qa_summary_verdict,
                 "metrics": metrics,
                 "report": report,
             }],
@@ -722,6 +859,27 @@ def build_graph(cfg: Config) -> object:
             )
             return "vision_agent"   # Still run vision for partial results
         return "detective"
+
+    def route_after_vision_qa(state: AgentState) -> str:
+        status = state.get("status", "")
+        verdict = state.get("qa_verdict", "NONE")
+        attempt = state.get("attempt_count", 0)
+
+        if (
+            status == "qa_failed"
+            and cfg.retry_on_qa_fail
+            and cfg.recovery_enabled
+            and attempt < cfg.max_recovery_attempts
+        ):
+            logger.info(
+                "Routing QA failure (%s) to detective for autonomous repair (attempt %d/%d).",
+                verdict,
+                attempt,
+                cfg.max_recovery_attempts,
+            )
+            return "detective"
+
+        return "END"
 
     # ------------------------------------------------------------------ #
     #  Build the graph
@@ -765,7 +923,14 @@ def build_graph(cfg: Config) -> object:
             "vision_agent": "vision_agent",
         },
     )
-    workflow.add_edge("vision_agent", END)
+    workflow.add_conditional_edges(
+        "vision_agent",
+        route_after_vision_qa,
+        {
+            "detective": "detective",
+            "END":       END,
+        },
+    )
     workflow.add_edge("success_finalize", END)
 
     return workflow.compile()

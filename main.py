@@ -302,6 +302,7 @@ def _run_one(
         "status":        "planning",
         "attempt_count": 0,
         "recovery_changed": True,
+        "qa_verdict":    "NONE",
     }
 
     final_state = app.invoke(initial_state)

@@ -1,0 +1,124 @@
+{
+  "failure_modes": {
+    "out_of_memory": {
+      "attempts": 2,
+      "successful_recoveries": 2,
+      "failed_recoveries": 0,
+      "repair_types": {
+        "oom_low_mem": 2
+      },
+      "recovery_times": [
+        0.0007,
+        0.001
+      ],
+      "total_attempts_before_success": []
+    },
+    "all_runs": {
+      "attempts": 0,
+      "successful_recoveries": 0,
+      "failed_recoveries": 0,
+      "repair_types": {},
+      "recovery_times": [],
+      "total_attempts_before_success": [
+        1,
+        2,
+        3,
+        1,
+        1
+      ]
+    },
+    "missing_phase_encoding_direction": {
+      "attempts": 7,
+      "successful_recoveries": 7,
+      "failed_recoveries": 0,
+      "repair_types": {
+        "drop_syn_ignore_fieldmaps": 7,
+        "generic_fieldmap_fix": 7
+      },
+      "recovery_times": [
+        0.0006,
+        0.0014,
+        0.0012,
+        0.0016,
+        0.0021,
+        0.0016,
+        0.0016
+      ],
+      "total_attempts_before_success": []
+    },
+    "missing_repetition_time": {
+      "attempts": 7,
+      "successful_recoveries": 7,
+      "failed_recoveries": 0,
+      "repair_types": {
+        "repair_missing_tr": 7
+      },
+      "recovery_times": [
+        0.0315,
+        0.0212,
+        0.0412,
+        0.0465,
+        0.0167,
+        0.0342,
+        0.0285
+      ],
+      "total_attempts_before_success": []
+    },
+    "other": {
+      "attempts": 33,
+      "successful_recoveries": 33,
+      "failed_recoveries": 0,
+      "repair_types": {
+        "repair_missing_tr": 17,
+        "drop_syn_ignore_fieldmaps": 12,
+        "generic_fieldmap_fix": 14,
+        "fs_no_reconall": 1
+      },
+      "recovery_times": [
+        0.0028,
+        0.0095,
+        0.0023,
+        0.0215,
+        0.0012,
+        0.0034,
+        0.001,
+        0.0223,
+        0.0013,
+        0.0045,
+        0.0348,
+        0.0008,
+        0.0025,
+        0.0031,
+        0.0009,
+        0.0276,
+        0.0212,
+        0.0295,
+        0.0012,
+        0.0697,
+        0.0013,
+        0.027,
+        0.0145,
+        0.0024,
+        0.0264,
+        0.0364,
+        0.0227,
+        0.0073,
+        0.0025,
+        0.0226,
+        0.0015,
+        0.0302,
+        0.0042
+      ],
+      "total_attempts_before_success": []
+    }
+  },
+  "command_generation": {
+    "all": {
+      "llm_generated": 0,
+      "rule_based": 0,
+      "hallucinated_flags": 0,
+      "valid_commands": 0,
+      "invalid_commands": 0
+    }
+  }
+}

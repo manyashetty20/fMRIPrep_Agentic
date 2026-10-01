@@ -1,0 +1,51 @@
+{
+  "table_1_qa_metrics": [
+    {
+      "participant": "sub-01",
+      "session": "ses-retest",
+      "raw_nonzero_voxels": 5377860,
+      "preprocessed_nonzero_voxels": 10194543,
+      "brain_mask_nonzero_voxels": 924669,
+      "brain_mask_retention_ratio": 0.0907,
+      "brain_mask_retention_pct": "9.07%",
+      "skull_strip_reduction": 0.9093,
+      "skull_strip_reduction_pct": "90.93%",
+      "mni_normalization": "PASS (MNI152NLin2009cAsym)",
+      "html_report_generated": true,
+      "qa_verdict": "PASS"
+    },
+    {
+      "participant": "sub-02",
+      "session": "ses-retest",
+      "raw_nonzero_voxels": 6386953,
+      "preprocessed_nonzero_voxels": 16498082,
+      "brain_mask_nonzero_voxels": 1358326,
+      "brain_mask_retention_ratio": 0.0823,
+      "brain_mask_retention_pct": "8.23%",
+      "skull_strip_reduction": 0.9177,
+      "skull_strip_reduction_pct": "91.77%",
+      "mni_normalization": "PASS (MNI152NLin2009cAsym)",
+      "html_report_generated": true,
+      "qa_verdict": "PASS"
+    },
+    {
+      "participant": "sub-03",
+      "session": "ses-retest",
+      "raw_nonzero_voxels": 4810008,
+      "preprocessed_nonzero_voxels": 10148543,
+      "brain_mask_nonzero_voxels": 972705,
+      "brain_mask_retention_ratio": 0.0958,
+      "brain_mask_retention_pct": "9.58%",
+      "skull_strip_reduction": 0.9042,
+      "skull_strip_reduction_pct": "90.42%",
+      "mni_normalization": "PASS (MNI152NLin2009cAsym)",
+      "html_report_generated": true,
+      "qa_verdict": "PASS"
+    }
+  ],
+  "table_1_summary": {
+    "mean_brain_mask_retention_pct": "8.96% \u00b1 0.68%",
+    "mean_skull_strip_reduction_pct": "91.04% \u00b1 0.68%",
+    "overall_pass_rate": "100% (3/3)"
+  }
+}
