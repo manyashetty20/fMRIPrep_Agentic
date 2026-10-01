@@ -26,11 +26,15 @@ logger = logging.getLogger(__name__)
 # Ordered columns for CSV (extras still appended if missing from older rows).
 EVALUATION_FIELDNAMES: list[str] = [
     "run_mode",
+    "run_class",
+    "run_source",
     "timestamp",
     "run_id",
     "metrics_path",
     "dataset_id",
     "participant",
+    "true_subject",
+    "sessions_processed",
     "output_dir",
     "initial_status",
     "final_status",
@@ -47,6 +51,10 @@ EVALUATION_FIELDNAMES: list[str] = [
     "participant_scope",
     "initial_failure_type",
     "initial_failure_evidence",
+    "true_failure_mode",
+    "failure_origin",
+    "applied_rule_ids",
+    "label_note",
     "detection_method",
     "diagnosis_duration_seconds",
     "recovery_duration_seconds",
@@ -64,6 +72,8 @@ EVALUATION_FIELDNAMES: list[str] = [
     "preprocessed_nonzero_voxels",
     "brain_mask_nonzero_voxels",
     "brain_mask_retention_ratio",
+    "legacy_retention_ratio",
+    "retention_ratio_recomputed",
     "skull_strip_reduction",
     "mni_normalization_success",
     "qa_thresholds_json",
@@ -314,33 +324,51 @@ def append_evaluation_exports(
 
     fieldnames = _resolve_csv_fieldnames(csv_path, evaluation_row)
 
-    write_header = True
+    needs_rewrite = False
+    existing_rows: list[dict[str, Any]] = []
     if csv_path.exists() and csv_path.stat().st_size > 0:
-        write_header = False
+        with csv_path.open(newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            try:
+                existing_header = next(reader)
+                if existing_header != fieldnames:
+                    needs_rewrite = True
+                    for row_vals in reader:
+                        row_dict = {k: v for k, v in zip(existing_header, row_vals)}
+                        existing_rows.append(row_dict)
+            except StopIteration:
+                needs_rewrite = False
 
-    with csv_path.open("a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        if write_header:
+    if needs_rewrite:
+        with csv_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
             writer.writeheader()
-        writer.writerow({k: evaluation_row.get(k, "") for k in fieldnames})
+            for r in existing_rows:
+                writer.writerow({k: r.get(k, "") for k in fieldnames})
+            writer.writerow({k: evaluation_row.get(k, "") for k in fieldnames})
+    else:
+        write_header = not (csv_path.exists() and csv_path.stat().st_size > 0)
+        with csv_path.open("a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+            if write_header:
+                writer.writeheader()
+            writer.writerow({k: evaluation_row.get(k, "") for k in fieldnames})
 
-    with jsonl_path.open("a") as f:
+    with jsonl_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(evaluation_row, sort_keys=True) + "\n")
 
 
 def _resolve_csv_fieldnames(csv_path: Path, new_row: dict[str, Any]) -> list[str]:
     """Union persisted header with canonical keys so new columns appear without breaking old files."""
-    if not csv_path.exists() or csv_path.stat().st_size == 0:
-        return list(EVALUATION_FIELDNAMES) + sorted(
-            k for k in new_row if k not in EVALUATION_FIELDNAMES
-        )
+    header: list[str] = []
+    if csv_path.exists() and csv_path.stat().st_size > 0:
+        with csv_path.open(newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            try:
+                header = next(reader)
+            except StopIteration:
+                header = []
 
-    with csv_path.open(newline="") as f:
-        reader = csv.reader(f)
-        try:
-            header = next(reader)
-        except StopIteration:
-            return list(EVALUATION_FIELDNAMES)
-
-    merged = list(dict.fromkeys(header + EVALUATION_FIELDNAMES + list(new_row.keys())))
+    canonical = list(EVALUATION_FIELDNAMES)
+    merged = list(dict.fromkeys(canonical + header + list(new_row.keys())))
     return merged
