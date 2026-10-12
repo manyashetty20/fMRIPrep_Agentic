@@ -29,3 +29,5 @@ output/evaluation/reports*/
 !output/figures/
 !output/metrics/
 *.pklz
+__pycache__/
+*.pyc
