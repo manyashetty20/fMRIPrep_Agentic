@@ -43,7 +43,7 @@ _HEURISTICS: list[tuple[int, str, str, list[str]]] = [
      "Missing readout timing metadata",
      ["--fallback-total-readout-time", "add TotalReadoutTime or EffectiveEchoSpacing metadata"]),
 
-    (95, r"(?i)(out of memory|oom-?killer|exit code 137|Process killed with exit code 137)",
+    (95, r"(?i)(out of memory|oom-?killer|exit code 137|Process killed with exit code 137|(?m:^\s*Killed\s*$))",
      "OUT-OF-MEMORY crash",
      ["--low-mem", "--mem_mb", "--nprocs 1"]),
 

@@ -248,10 +248,15 @@ def main() -> None:
         }
 
         if args.mode in ("missing_tr",):
-            sidecars = _pick_all_bold_jsons(subject_dir)
+            # only edit JSON files that already exist; do not invent new sidecars
+            sidecars = sorted(subject_dir.rglob("*_bold.json"))
             for j in sidecars:
                 _strip_keys(j, {"RepetitionTime"})
-            manifest["edited_sidecars"] = [str(p) for p in sidecars]
+            # BIDS inheritance: TR also lives in the top-level task JSON
+            top_level = sorted(dst.glob("task-*_bold.json"))
+            for t in top_level:
+                _strip_keys(t, {"RepetitionTime"})
+            manifest["edited_sidecars"] = [str(p) for p in sidecars + top_level]
 
         elif args.mode in ("bad_readout", "missing_total_readout_time"):
             sidecars = _pick_all_bold_jsons(subject_dir)
