@@ -35,7 +35,7 @@ _HEURISTICS: list[tuple[int, str, str, list[str]]] = [
      "Anatomical clipping / brain over-stripped",
      ["--skull-strip-template OASIS30ANTs", "--skull-strip-fixed-seed", "--fs-no-reconall"]),
 
-    (106, r"(?i)(JSON_INVALID|Not a valid JSON file)",
+    (106, r"(?i)(JSON_INVALID|Not a valid JSON file|JSONDecodeError|trying to decode JSON)",
      "Invalid JSON sidecar (JSON_INVALID)",
      ["quarantine unparseable sidecar JSON; rely on BIDS inheritance"]),
 

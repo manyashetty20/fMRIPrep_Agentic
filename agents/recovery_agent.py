@@ -301,7 +301,7 @@ def _repair_invalid_json(parts: list[str], cfg: Config) -> None:
 REPAIR_RULES: list[RepairRule] = [
     RepairRule(
         "quarantine_invalid_json",
-        r"(?i)(JSON_INVALID|Not a valid JSON file|Invalid JSON sidecar)",
+        r"(?i)(JSON_INVALID|Not a valid JSON file|Invalid JSON sidecar|JSONDecodeError|decode JSON|invalid JSON syntax)",
         "unparseable sidecar JSON quarantined (top-level task JSON inherited)",
         _repair_invalid_json,
     ),
