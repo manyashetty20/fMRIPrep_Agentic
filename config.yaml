@@ -28,7 +28,7 @@ pipeline:
   nprocs: 1
   fallback_total_readout_time: 0.05
   output_space: "MNI152NLin2009cAsym"
-  docker_image: "nipreps/fmriprep:latest"
+  docker_image: "nipreps/fmriprep:25.2.3"
   
 # --- LLM / Embedding Settings ---
 llm:

@@ -13,7 +13,7 @@ paths:
   config_yaml: ./config.yaml
 
 pipeline:
-  docker_image: nipreps/fmriprep:24.1.1
+  docker_image: nipreps/fmriprep:25.2.3
   anat_only: false
   sloppy: false
   low_mem: true

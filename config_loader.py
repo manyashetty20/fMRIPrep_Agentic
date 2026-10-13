@@ -476,6 +476,9 @@ class Config:
             files.extend(sorted(flat.glob("*_bold.json")))
         for func_dir in sorted(subject.glob("ses-*/func")):
             files.extend(sorted(func_dir.glob("*_bold.json")))
+        if not files:
+            # BIDS inheritance: metadata may live in the top-level task-*_bold.json
+            files.extend(sorted(subject.parent.glob("task-*_bold.json")))
         return files
 
     def missing_phase_encoding_direction(self) -> bool:
