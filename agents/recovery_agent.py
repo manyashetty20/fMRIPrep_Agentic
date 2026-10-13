@@ -262,7 +262,49 @@ class RepairRule:
 
 # Order matters: more specific rules first. drop_syn must precede generic_fieldmap.
 # generic_fieldmap is skipped in the same pass if drop_syn already ran.
+def _repair_invalid_json(parts: list[str], cfg: Config) -> None:
+    # Quarantine unparseable per-subject sidecars so BIDS inheritance uses the top-level task JSON.
+    import shutil
+
+    bids_dir = None
+    for i, tok in enumerate(parts):
+        if tok == "-v" and i + 1 < len(parts) and parts[i + 1].endswith(":/data:ro"):
+            bids_dir = Path(parts[i + 1][: -len(":/data:ro")])
+    if bids_dir is None or not bids_dir.exists():
+        logger.warning("Could not locate BIDS dir in command; no JSON repair possible")
+        return
+
+    quarantine = Path(cfg.output_dir) / "quarantined_sidecars"
+    moved = 0
+    for jf in sorted(bids_dir.rglob("*.json")):
+        if jf.name.startswith("."):
+            continue
+        try:
+            json.loads(jf.read_text())
+            continue
+        except Exception:
+            pass
+        rel = jf.relative_to(bids_dir)
+        if not rel.parts[0].startswith("sub-"):
+            logger.warning("Invalid top-level JSON %s left untouched (would lose metadata)", jf)
+            continue
+        quarantine.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(jf), str(quarantine / jf.name))
+        logger.info("Quarantined invalid sidecar %s", jf)
+        moved += 1
+
+    if moved:
+        idx = parts.index("run") + 1 if "run" in parts else 1
+        parts[idx:idx] = ["--label", "agentic_repair=json_quarantine"]
+
+
 REPAIR_RULES: list[RepairRule] = [
+    RepairRule(
+        "quarantine_invalid_json",
+        r"(?i)(JSON_INVALID|Not a valid JSON file|Invalid JSON sidecar)",
+        "unparseable sidecar JSON quarantined (top-level task JSON inherited)",
+        _repair_invalid_json,
+    ),
     RepairRule(
         "fix_skull_strip_clipping",
         r"(?i)(ANAT_CLIPPED_BRAIN|boundary.*clipping|brain.*clipped|cortex.*clipped|over-stripped|skull_strip_reduction.*high|brain_mask.*boundary)",

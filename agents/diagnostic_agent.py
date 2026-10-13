@@ -35,6 +35,10 @@ _HEURISTICS: list[tuple[int, str, str, list[str]]] = [
      "Anatomical clipping / brain over-stripped",
      ["--skull-strip-template OASIS30ANTs", "--skull-strip-fixed-seed", "--fs-no-reconall"]),
 
+    (106, r"(?i)(JSON_INVALID|Not a valid JSON file)",
+     "Invalid JSON sidecar (JSON_INVALID)",
+     ["quarantine unparseable sidecar JSON; rely on BIDS inheritance"]),
+
     (105, r"(?i)(ANAT_OVERSEGMENTATION|skull.*retained|dura.*retained|under-stripped|skull_strip_reduction.*low)",
      "Anatomical under-stripping / non-brain tissue retained",
      ["--skull-strip-template OASIS30ANTs", "--skull-strip-fixed-seed"]),
