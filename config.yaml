@@ -41,6 +41,8 @@ embeddings:
 
 # --- Agent Behaviour ---
 agents:
+  config_generation_mode: rule_only
+  syn_sdc_precheck: true
   max_recovery_attempts: 3       # Give up after this many retries
   recovery_enabled: true         # Ablation: set false for "plan + diagnose only" baselines
   diagnosis_enabled: true        # Ablation: set false to skip diagnostic agent on failures

@@ -241,6 +241,18 @@ def build_graph(cfg: Config) -> object:
 
         except subprocess.CalledProcessError as exc:
             error_text = (exc.stderr or "") + (exc.stdout or "")
+            # fMRIPrep writes the real crash reason (e.g. "Killed") to a crash file, not to Docker output.
+            try:
+                import re as _re, pathlib as _pl
+                _m = _re.search(r"-v\s+(\S+):/out\b", cmd)
+                if _m:
+                    _found = [q for q in _pl.Path(_m.group(1)).rglob("crash-*.txt")
+                              if q.stat().st_mtime >= t0.timestamp() - 5]
+                    if _found:
+                        _latest = max(_found, key=lambda q: q.stat().st_mtime)
+                        error_text += "\n--- fMRIPrep crash file ---\n" + _latest.read_text(errors="replace")[-6000:]
+            except Exception:
+                pass
             duration = (datetime.now(timezone.utc) - t0).total_seconds()
             logger.error("Execution failed (exit %d):\n%s", exc.returncode, error_text[-2000:])
             emit(
