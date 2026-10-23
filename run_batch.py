@@ -94,7 +94,12 @@ def main():
                          "row NOT recorded. Fix Docker and rerun.")
             rep = out / f"{sub}.html"
             if rep.exists():
-                shutil.copy(rep, B / "reports" / f"{arm}_{sub}.html")
+                rdir = B / "reports" / f"{arm}_{sub}"
+                rdir.mkdir(parents=True, exist_ok=True)
+                shutil.copy(rep, rdir / f"{sub}.html")
+                figs = out / sub / "figures"
+                if figs.exists():
+                    shutil.copytree(figs, rdir / sub / "figures", dirs_exist_ok=True)
             with open(res, "a", newline="") as f:
                 csv.DictWriter(f, FIELDS).writerow(row)
             shutil.rmtree(out, ignore_errors=True)       # frees ~GBs; metrics are in results.csv and logs
