@@ -1,2 +1,0 @@
-recon-all -parallel -subjid sub-01 -sd /out/freesurfer -cortribbon
-
