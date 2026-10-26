@@ -31,3 +31,5 @@ output/evaluation/reports*/
 *.pklz
 __pycache__/
 *.pyc
+license.txt
+outputs/
